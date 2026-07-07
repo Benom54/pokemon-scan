@@ -857,6 +857,52 @@ async function uploadImageToStorage(supabaseUrl, serviceKey, base64, mediaType) 
   }
 }
 
+// Construit un slug lisible (nom-set-numero) pour nommer l'image sur ton propre stockage
+function slugify(str) {
+  return (str || '')
+    .toString()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // retire les accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+// Télécharge l'image officielle TCGdex et la réenregistre dans ton bucket, sous un nom basé sur le slug,
+// pour qu'elle soit vraiment hébergée chez toi plutôt qu'un simple lien vers TCGdex.
+async function rehostStockImage(supabaseUrl, serviceKey, tcgdexImageUrl, card) {
+  if (!tcgdexImageUrl) return null;
+  try {
+    const resp = await fetch(tcgdexImageUrl);
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+
+    const slug = [card.name, card.set?.name, card.localId].filter(Boolean).map(slugify).join('-');
+    const filename = `stock-${slug}.png`;
+
+    const uploadResp = await fetch(`${supabaseUrl}/storage/v1/object/cartes-photos/${filename}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'image/png',
+        'apikey': serviceKey,
+        'Authorization': `Bearer ${serviceKey}`,
+        // écrase l'ancienne image si une carte identique a déjà été enregistrée (même slug)
+        'x-upsert': 'true'
+      },
+      body: blob
+    });
+
+    if (!uploadResp.ok) {
+      console.warn('Échec réhébergement image officielle :', await uploadResp.text());
+      return null;
+    }
+
+    return `${supabaseUrl}/storage/v1/object/public/cartes-photos/${filename}`;
+  } catch (err) {
+    console.warn('Erreur réhébergement image officielle :', err);
+    return null;
+  }
+}
+
 async function saveToStock() {
   const url = supabaseUrlInput.value.trim().replace(/\/$/, '');
   const key = supabaseKeyInput.value.trim();
@@ -872,9 +918,11 @@ async function saveToStock() {
   const saveBtn = document.getElementById('saveStockBtn');
   saveBtn.disabled = true;
   stockStatusEl.style.color = '';
-  stockStatusEl.textContent = 'Envoi des photos...';
+  stockStatusEl.textContent = 'Envoi des photos et hébergement de l\'illustration...';
 
   const photoUrl = await uploadImageToStorage(url, key, frontImage, frontMediaType);
+  const tcgdexUrl = lastCard.image ? `${lastCard.image}/high.png` : null;
+  const rehostedImageUrl = await rehostStockImage(url, key, tcgdexUrl, lastCard);
   const photoBackUrl = await uploadImageToStorage(url, key, backImage, backMediaType);
 
   stockStatusEl.textContent = 'Enregistrement en cours...';
@@ -893,7 +941,7 @@ async function saveToStock() {
     price: parseFloat(document.getElementById('editPrice').value) || null,
     status: 'en_stock',
     // Image officielle TCGdex : utilisée pour la vignette de la vitrine (avec filigrane)
-    image_url: lastCard.image ? `${lastCard.image}/high.png` : null,
+    image_url: rehostedImageUrl || tcgdexUrl,
     // Tes vraies photos : affichées au clic sur l'annonce
     photo_url: photoUrl,
     photo_back_url: photoBackUrl
