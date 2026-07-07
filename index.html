@@ -689,10 +689,17 @@ function showResult(card, info) {
   updateBadgesAndWarning();
 
   const cm = card.pricing?.cardmarket;
-  const tcg = card.pricing?.tcgplayer?.normal || card.pricing?.tcgplayer?.holofoil;
+  const isHolo = !!(info && info.holo);
+  // TCGplayer expose plusieurs clés possibles selon le set (normal/reverse la plupart du temps,
+  // holofoil/reverseHolofoil sur d'anciens sets) : on prend la plus pertinente selon holo ou non.
+  const tcgVariants = card.pricing?.tcgplayer || {};
+  const tcg = isHolo
+    ? (tcgVariants.holofoil || tcgVariants.reverseHolofoil || tcgVariants.reverse || tcgVariants.normal)
+    : (tcgVariants.normal || tcgVariants.reverse || tcgVariants.holofoil);
+
   let priceText = 'Prix de marché non disponible';
   let priceValue = null;
-  const useHolo = info && info.holo && cm && cm['avg-holo'];
+  const useHolo = isHolo && cm && cm['avg-holo'];
   if (cm && (useHolo || cm.avg || cm.trend)) {
     priceValue = useHolo ? (cm['avg-holo'] || cm['trend-holo']) : (cm.avg || cm.trend);
     priceText = priceValue.toFixed(2);
