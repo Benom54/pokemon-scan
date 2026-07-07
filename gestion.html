@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Gestion du stock</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root {
     --ink: #1c1b19;
@@ -115,6 +116,57 @@
   .field-edit { margin-top: 14px; }
   .field-edit label { font-weight: 600; font-size: 12px; color: #6b6a64; }
 
+  .print-modal .modal { max-width: 480px; }
+  .print-fields { margin-bottom: 16px; }
+  .print-fields .row { display: flex; gap: 10px; }
+  .print-fields .row > div { flex: 1; }
+  .print-fields label { margin-top: 10px; }
+
+  .preview-zone { display: flex; justify-content: center; margin: 12px 0 16px; }
+  #printLabel {
+    background: #fff;
+    border: 1px solid #000;
+    display: flex;
+    align-items: center;
+    padding: 3mm;
+    gap: 3mm;
+  }
+  .label-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    overflow: hidden;
+  }
+  .label-name {
+    font-weight: 700;
+    line-height: 1.15;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .label-meta {
+    font-weight: 700;
+    font-size: 8px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--gold);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .label-price { font-weight: 800; white-space: nowrap; overflow: hidden; }
+  #printQr { flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+
+  @media print {
+    body * { visibility: hidden; }
+    #printLabel, #printLabel * { visibility: visible; }
+    #printLabel { position: fixed; top: 0; left: 0; box-shadow: none; border: none; margin: 0; }
+    @page { margin: 0; }
+  }
+
   .empty, .loading {
     text-align: center;
     color: #8b897f;
@@ -221,6 +273,45 @@
   </div>
 </div>
 
+<div class="modal-overlay print-modal" id="printModalOverlay">
+  <div class="modal">
+    <h2>Réimprimer l'étiquette</h2>
+
+    <div class="print-fields">
+      <label for="printName">Nom (sur l'étiquette)</label>
+      <input type="text" id="printName">
+      <label for="printPrice">Prix (€)</label>
+      <input type="text" id="printPrice">
+      <div class="row">
+        <div>
+          <label for="printW">Largeur (mm)</label>
+          <input type="text" id="printW" value="50">
+        </div>
+        <div>
+          <label for="printH">Hauteur (mm)</label>
+          <input type="text" id="printH" value="30">
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-zone">
+      <div id="printLabel">
+        <div class="label-text">
+          <div class="label-name" id="printLabelName"></div>
+          <div class="label-meta" id="printLabelMeta"></div>
+          <div class="label-price" id="printLabelPrice"></div>
+        </div>
+        <div id="printQr"></div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="ghost" id="printModalCancel">Fermer</button>
+      <button id="printModalGo">Imprimer</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const urlInput = document.getElementById('supabaseUrl');
 const keyInput = document.getElementById('supabaseKey');
@@ -321,6 +412,7 @@ function render() {
           <div class="item-price">${priceText}</div>
         </div>
         <div class="item-actions">
+          <button class="ghost" data-print-id="${c.id}">Imprimer</button>
           <button class="ghost" data-edit-id="${c.id}">Modifier</button>
           <button class="danger" data-id="${c.id}" data-name="${escapeHtml(c.name)}">Supprimer</button>
         </div>
@@ -333,6 +425,9 @@ function render() {
   });
   listEl.querySelectorAll('button[data-edit-id]').forEach(btn => {
     btn.addEventListener('click', () => openEditModal(btn.dataset.editId));
+  });
+  listEl.querySelectorAll('button[data-print-id]').forEach(btn => {
+    btn.addEventListener('click', () => openPrintModal(btn.dataset.printId));
   });
 
   renderPagination(totalPages, cards.length);
@@ -464,6 +559,110 @@ document.getElementById('editModalSave').addEventListener('click', async () => {
     msgEl.textContent = 'Erreur : ' + err.message;
   }
 });
+
+function mmToPx(mm) { return mm * (96 / 25.4); }
+
+function fitText(el, maxWidth, maxHeight, startPx, minPx) {
+  let fs = startPx;
+  el.style.fontSize = fs + 'px';
+  while (fs > minPx && (el.scrollWidth > maxWidth || el.scrollHeight > maxHeight)) {
+    fs -= 1;
+    el.style.fontSize = fs + 'px';
+  }
+  return fs;
+}
+
+let printCardId = null;
+
+function openPrintModal(id) {
+  const card = allCards.find(c => c.id === id);
+  if (!card) return;
+  printCardId = id;
+
+  const numberSet = [card.card_number, card.set_name].filter(Boolean).join(' - ');
+  const labelName = numberSet ? `${card.name} · ${numberSet}` : card.name;
+
+  document.getElementById('printName').value = labelName;
+  document.getElementById('printPrice').value = card.price != null ? Number(card.price).toFixed(2) : '';
+  document.getElementById('printW').value = '50';
+  document.getElementById('printH').value = '30';
+
+  document.getElementById('printModalOverlay').classList.add('open');
+  renderPrintLabel(card);
+}
+
+function renderPrintLabel(card) {
+  const name = document.getElementById('printName').value || 'Nom de la carte';
+  const price = document.getElementById('printPrice').value || '0.00';
+  const wMm = parseFloat(document.getElementById('printW').value) || 50;
+  const hMm = parseFloat(document.getElementById('printH').value) || 30;
+
+  const nameEl = document.getElementById('printLabelName');
+  const priceEl = document.getElementById('printLabelPrice');
+  const metaEl = document.getElementById('printLabelMeta');
+  nameEl.textContent = name;
+  priceEl.textContent = price + ' €';
+
+  const metaParts = [];
+  if (card.first_edition) metaParts.push('1ère édition');
+  if (card.stamp) metaParts.push('Stamp');
+  if (card.graded && card.grade != null) metaParts.push(`Gradée ${card.grade}`);
+  if (card.condition) metaParts.push(card.condition);
+  const metaText = metaParts.join(' · ');
+  metaEl.textContent = metaText;
+  metaEl.style.display = metaText ? 'block' : 'none';
+
+  const label = document.getElementById('printLabel');
+  label.style.width = mmToPx(wMm) + 'px';
+  label.style.height = mmToPx(hMm) + 'px';
+
+  const qrSizeMm = Math.max(hMm - 6, 10);
+  const qrSizePx = Math.round(mmToPx(qrSizeMm));
+  const qrDiv = document.getElementById('printQr');
+  qrDiv.innerHTML = '';
+  qrDiv.style.width = qrSizePx + 'px';
+  qrDiv.style.height = qrSizePx + 'px';
+
+  const cond = encodeURIComponent(card.condition || '');
+  const ed = card.first_edition ? '1ere' : 'standard';
+  const qrUrl = `https://tonsite.com/carte/${card.tcgdex_id || card.id}?etat=${cond}&edition=${ed}`;
+  new QRCode(qrDiv, { text: qrUrl, width: qrSizePx, height: qrSizePx, correctLevel: QRCode.CorrectLevel.L });
+
+  requestAnimationFrame(() => {
+    const textEl = document.querySelector('#printLabel .label-text');
+    const textWidth = textEl.clientWidth;
+    const textHeight = textEl.clientHeight;
+
+    if (metaText) fitText(metaEl, textWidth, mmToPx(hMm * 0.16), 9, 6);
+    const metaH = metaText ? metaEl.scrollHeight : 0;
+
+    fitText(priceEl, textWidth, textHeight * 0.45, mmToPx(hMm * 0.42), 8);
+    const priceH = priceEl.scrollHeight;
+
+    const gap = 4;
+    const nameMaxHeight = Math.max(textHeight - metaH - priceH - gap, mmToPx(hMm * 0.15));
+    fitText(nameEl, textWidth, nameMaxHeight, mmToPx(hMm * 0.34), 7);
+  });
+}
+
+['printName', 'printPrice', 'printW', 'printH'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    const card = allCards.find(c => c.id === printCardId);
+    if (card) renderPrintLabel(card);
+  });
+});
+
+document.getElementById('printModalCancel').addEventListener('click', () => {
+  printCardId = null;
+  document.getElementById('printModalOverlay').classList.remove('open');
+});
+document.getElementById('printModalOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'printModalOverlay') {
+    printCardId = null;
+    document.getElementById('printModalOverlay').classList.remove('open');
+  }
+});
+document.getElementById('printModalGo').addEventListener('click', () => window.print());
 
 document.getElementById('refreshBtn').addEventListener('click', loadCards);
 document.getElementById('filterStatus').addEventListener('change', () => { currentPage = 1; render(); });
