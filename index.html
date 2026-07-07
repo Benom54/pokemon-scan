@@ -587,20 +587,38 @@ async function fetchTcgdex(lang, params) {
   return await resp.json();
 }
 
+// Génère plusieurs variantes plausibles du nom lu par l'IA, pour compenser
+// les différences espace/tiret ou suffixe (ex/GX/V) entre la lecture et la base TCGdex.
+function nameVariants(name) {
+  const variants = [name];
+  if (name.includes('-')) variants.push(name.replace(/-/g, ' '));
+  if (name.includes(' ')) variants.push(name.replace(/ /g, '-'));
+  const bare = name.replace(/[\s-]?(ex|gx|v|vmax|vstar|EX|GX|V|VMAX|VSTAR)$/, '').trim();
+  if (bare && bare !== name) variants.push(bare);
+  return [...new Set(variants)];
+}
+
 async function lookupCard(info) {
   const lang = LANG_CODES[document.getElementById('cardLang').value] || 'fr';
   const cardNumber = (info.number || '').split('/')[0].trim();
   let cards = [];
+  const variants = info.name ? nameVariants(info.name) : [];
 
   if (info.name && cardNumber) {
-    let params = `name=${encodeURIComponent(info.name)}&localId=eq:${encodeURIComponent(cardNumber)}`;
-    let results = await fetchTcgdex(lang, params);
-    cards = results.filter(c => nameMatches(c.name, info.name));
+    for (const variant of variants) {
+      let params = `name=${encodeURIComponent(variant)}&localId=eq:${encodeURIComponent(cardNumber)}`;
+      let results = await fetchTcgdex(lang, params);
+      cards = results.filter(c => nameMatches(c.name, info.name));
+      if (cards.length > 0) break;
+    }
   }
 
   if (cards.length === 0 && info.name) {
-    let results = await fetchTcgdex(lang, `name=${encodeURIComponent(info.name)}`);
-    cards = results.filter(c => nameMatches(c.name, info.name));
+    for (const variant of variants) {
+      let results = await fetchTcgdex(lang, `name=${encodeURIComponent(variant)}`);
+      cards = results.filter(c => nameMatches(c.name, info.name));
+      if (cards.length > 0) break;
+    }
   }
 
   if (cards.length === 0) {
