@@ -83,22 +83,23 @@
   .ticket-img img { width: 100%; height: 100%; object-fit: contain; }
   .watermark {
     position: absolute;
-    inset: 0;
+    inset: -60%;
     display: flex;
     align-items: center;
     justify-content: center;
     pointer-events: none;
     overflow: hidden;
-  }
-  .watermark span {
-    display: inline-block;
     transform: rotate(-28deg);
-    font-size: 15px;
+  }
+  .watermark-text {
+    font-size: 12px;
     font-weight: 800;
-    letter-spacing: 0.08em;
-    color: rgba(255,255,255,0.75);
-    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
-    white-space: nowrap;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.55);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+    white-space: pre;
+    text-align: center;
+    line-height: 2.4;
   }
   .ticket-body {
     padding: 12px 14px 14px;
@@ -275,6 +276,57 @@ async function loadCards() {
   }
 }
 
+// Fusionne l'image officielle et le filigrane dans un vrai canvas, pour que le filigrane
+// soit collé dans les pixels de l'image (impossible à retirer par un simple clic-droit "enregistrer").
+function watermarkImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(-28 * Math.PI / 180);
+        ctx.font = `bold ${Math.round(canvas.width * 0.075)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        ctx.lineWidth = Math.max(1, canvas.width * 0.004);
+
+        const stepY = canvas.height * 0.22;
+        const stepX = canvas.width * 0.95;
+        const span = Math.max(canvas.width, canvas.height) * 1.6;
+        for (let y = -span; y < span; y += stepY) {
+          for (let x = -span; x < span; x += stepX) {
+            ctx.strokeText(WATERMARK_TEXT, x, y);
+            ctx.fillText(WATERMARK_TEXT, x, y);
+          }
+        }
+        ctx.restore();
+
+        resolve(canvas.toDataURL('image/png'));
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function watermarkBlock() {
+  const line = Array(4).fill(escapeHtml(WATERMARK_TEXT)).join('&nbsp;&nbsp;·&nbsp;&nbsp;');
+  const lines = Array(8).fill(line).join('<br>');
+  return `<div class="watermark"><div class="watermark-text">${lines}</div></div>`;
+}
+
 function render() {
   const query = document.getElementById('search').value.trim().toLowerCase();
   const sort = document.getElementById('sort').value;
@@ -317,7 +369,7 @@ function render() {
       <div class="ticket">
         <div class="ticket-img" data-index="${i}">
           ${c.image_url ? `<img src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.name)}" loading="lazy">` : ''}
-          <div class="watermark"><span>${escapeHtml(WATERMARK_TEXT)} · ${escapeHtml(WATERMARK_TEXT)} · ${escapeHtml(WATERMARK_TEXT)}</span></div>
+          ${watermarkBlock()}
         </div>
         <div class="ticket-body">
           <div class="ticket-badges">${badges}</div>
@@ -332,6 +384,22 @@ function render() {
 
   gridEl.querySelectorAll('.ticket-img').forEach(el => {
     el.addEventListener('click', () => openModal(cards[Number(el.dataset.index)]));
+
+    const card = cards[Number(el.dataset.index)];
+    const imgEl = el.querySelector('img');
+    if (card.image_url && imgEl) {
+      watermarkImage(card.image_url)
+        .then(dataUrl => {
+          imgEl.src = dataUrl;
+          // Le filigrane est maintenant dans les pixels : on retire la couche CSS, devenue redondante
+          const overlay = el.querySelector('.watermark');
+          if (overlay) overlay.remove();
+        })
+        .catch(err => {
+          // Repli : l'image brute reste affichée avec seulement le filigrane CSS par-dessus
+          console.warn('Filigrane non fusionné (probablement CORS) :', err);
+        });
+    }
   });
 }
 
