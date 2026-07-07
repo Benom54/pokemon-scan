@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boutique cartes Pokémon</title>
+<style>
+  :root {
+    --ink: #1c1b19;
+    --paper: #faf9f6;
+    --card: #ffffff;
+    --line: #dcd9d1;
+    --accent: #2f5d4f;
+    --accent-ink: #eaf2ef;
+    --gold: #9c7a2e;
+    --gold-bg: #fbf3df;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  header {
+    padding: 40px 20px 24px;
+    text-align: center;
+    border-bottom: 1px solid var(--line);
+    background: var(--card);
+  }
+  header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  header p {
+    color: #6b6a64;
+    font-size: 14px;
+    margin: 0;
+  }
+
+  .controls {
+    max-width: 1080px;
+    margin: 24px auto 0;
+    padding: 0 20px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .controls input, .controls select {
+    padding: 10px 13px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 14px;
+    background: var(--card);
+    color: var(--ink);
+  }
+  .controls input[type="text"] { flex: 1; min-width: 200px; }
+  .controls input:focus, .controls select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .grid {
+    max-width: 1080px;
+    margin: 24px auto 64px;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 18px;
+  }
+
+  .ticket {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .ticket-img {
+    aspect-ratio: 5 / 7;
+    background: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .ticket-img img { width: 100%; height: 100%; object-fit: contain; }
+  .ticket-body {
+    padding: 12px 14px 14px;
+    position: relative;
+  }
+  .ticket-body::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 14px; right: 14px;
+    border-top: 1px dashed var(--line);
+  }
+  .ticket-badges { margin: 10px 0 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--gold-bg);
+    color: var(--gold);
+    letter-spacing: 0.02em;
+  }
+  .badge.cond { background: var(--accent-ink); color: var(--accent); }
+  .ticket-name {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0 0 2px;
+  }
+  .ticket-meta {
+    font-size: 11px;
+    color: #8b897f;
+    margin-bottom: 8px;
+  }
+  .ticket-price {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+  .ticket-cta {
+    display: block;
+    text-align: center;
+    padding: 8px;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .ticket-cta:hover { opacity: 0.9; }
+
+  .empty, .loading {
+    max-width: 1080px;
+    margin: 60px auto;
+    text-align: center;
+    color: #8b897f;
+    font-size: 14px;
+    padding: 0 20px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Boutique cartes Pokémon</h1>
+  <p>Cartes vérifiées et notées à la main, mises à jour en temps réel.</p>
+</header>
+
+<div class="controls">
+  <input type="text" id="search" placeholder="Chercher une carte (nom, set...)">
+  <select id="sort">
+    <option value="recent">Plus récentes</option>
+    <option value="price_asc">Prix croissant</option>
+    <option value="price_desc">Prix décroissant</option>
+    <option value="name">Nom (A → Z)</option>
+  </select>
+</div>
+
+<div id="grid" class="grid"></div>
+<div id="loading" class="loading">Chargement des cartes...</div>
+<div id="empty" class="empty" style="display:none;">Aucune carte en stock pour le moment — reviens bientôt !</div>
+
+<script>
+// ============================================================
+// Configuration — clé "anon public" uniquement (sûre à exposer,
+// elle ne peut lire que les cartes en_stock grâce aux policies SQL).
+// Ne mets JAMAIS la clé service_role ici.
+// ============================================================
+const SUPABASE_URL = 'https://izfusafzbekuezqitzsp.supabase.co';
+const SUPABASE_ANON_KEY = 'COLLE_ICI_TA_CLE_ANON_PUBLIC';
+const CONTACT_EMAIL = 'ton-email@exemple.com'; // utilisé pour le bouton "Réserver" en attendant le paiement en ligne
+
+let allCards = [];
+
+async function loadCards() {
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/cartes?select=*&status=eq.en_stock&order=created_at.desc`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+    );
+    if (!resp.ok) throw new Error(await resp.text());
+    allCards = await resp.json();
+    document.getElementById('loading').style.display = 'none';
+    render();
+  } catch (err) {
+    document.getElementById('loading').textContent = 'Erreur de chargement : ' + err.message;
+  }
+}
+
+function render() {
+  const query = document.getElementById('search').value.trim().toLowerCase();
+  const sort = document.getElementById('sort').value;
+
+  let cards = allCards.filter(c =>
+    !query ||
+    (c.name || '').toLowerCase().includes(query) ||
+    (c.set_name || '').toLowerCase().includes(query)
+  );
+
+  if (sort === 'price_asc') cards.sort((a, b) => (a.price || 0) - (b.price || 0));
+  else if (sort === 'price_desc') cards.sort((a, b) => (b.price || 0) - (a.price || 0));
+  else if (sort === 'name') cards.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  // 'recent' garde l'ordre déjà trié par created_at desc côté requête
+
+  const gridEl = document.getElementById('grid');
+  const emptyEl = document.getElementById('empty');
+
+  if (cards.length === 0) {
+    gridEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  gridEl.innerHTML = cards.map(c => {
+    const badges = [
+      c.first_edition ? '<span class="badge">1ère édition</span>' : '',
+      c.stamp ? '<span class="badge">Stamp</span>' : '',
+      c.holo ? '<span class="badge">Holo</span>' : '',
+      c.condition ? `<span class="badge cond">${escapeHtml(c.condition)}</span>` : ''
+    ].join('');
+
+    const priceText = c.price != null ? `${Number(c.price).toFixed(2)} €` : 'Prix sur demande';
+    const numberSet = [c.card_number, c.set_name].filter(Boolean).join(' · ');
+    const subject = encodeURIComponent(`Réservation carte : ${c.name}`);
+    const body = encodeURIComponent(`Bonjour, je souhaite réserver la carte "${c.name}" (${numberSet}) à ${priceText}.`);
+
+    return `
+      <div class="ticket">
+        <div class="ticket-img">
+          ${c.image_url ? `<img src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.name)}" loading="lazy">` : ''}
+        </div>
+        <div class="ticket-body">
+          <div class="ticket-badges">${badges}</div>
+          <div class="ticket-name">${escapeHtml(c.name)}</div>
+          <div class="ticket-meta">${escapeHtml(numberSet)}</div>
+          <div class="ticket-price">${priceText}</div>
+          <a class="ticket-cta" href="mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}">Réserver</a>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+document.getElementById('search').addEventListener('input', render);
+document.getElementById('sort').addEventListener('change', render);
+
+loadCards();
+</script>
+</body>
+</html>
