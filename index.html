@@ -827,18 +827,18 @@ function base64ToBlob(base64, mediaType) {
   return new Blob([new Uint8Array(byteNumbers)], { type: mediaType });
 }
 
-// Envoie la photo recto vers le bucket "cartes-photos" et renvoie son URL publique (ou null si échec)
-async function uploadCardPhoto(supabaseUrl, serviceKey) {
-  if (!frontImage) return null;
+// Envoie une image (recto ou verso) vers le bucket "cartes-photos" et renvoie son URL publique (ou null si échec)
+async function uploadImageToStorage(supabaseUrl, serviceKey, base64, mediaType) {
+  if (!base64) return null;
   try {
-    const blob = base64ToBlob(frontImage, frontMediaType);
-    const ext = (frontMediaType.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+    const blob = base64ToBlob(base64, mediaType);
+    const ext = (mediaType.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
     const resp = await fetch(`${supabaseUrl}/storage/v1/object/cartes-photos/${filename}`, {
       method: 'POST',
       headers: {
-        'Content-Type': frontMediaType,
+        'Content-Type': mediaType,
         'apikey': serviceKey,
         'Authorization': `Bearer ${serviceKey}`
       },
@@ -872,9 +872,10 @@ async function saveToStock() {
   const saveBtn = document.getElementById('saveStockBtn');
   saveBtn.disabled = true;
   stockStatusEl.style.color = '';
-  stockStatusEl.textContent = 'Envoi de la photo...';
+  stockStatusEl.textContent = 'Envoi des photos...';
 
-  const photoUrl = await uploadCardPhoto(url, key);
+  const photoUrl = await uploadImageToStorage(url, key, frontImage, frontMediaType);
+  const photoBackUrl = await uploadImageToStorage(url, key, backImage, backMediaType);
 
   stockStatusEl.textContent = 'Enregistrement en cours...';
 
@@ -891,9 +892,11 @@ async function saveToStock() {
     holo: !!(lastInfo && lastInfo.holo),
     price: parseFloat(document.getElementById('editPrice').value) || null,
     status: 'en_stock',
-    // Priorité à ta propre photo (plus fidèle à l'état réel de la carte) ;
-    // repli sur l'image officielle TCGdex seulement si l'envoi de la photo a échoué.
-    image_url: photoUrl || (lastCard.image ? `${lastCard.image}/high.png` : null)
+    // Image officielle TCGdex : utilisée pour la vignette de la vitrine (avec filigrane)
+    image_url: lastCard.image ? `${lastCard.image}/high.png` : null,
+    // Tes vraies photos : affichées au clic sur l'annonce
+    photo_url: photoUrl,
+    photo_back_url: photoBackUrl
   };
 
   try {
