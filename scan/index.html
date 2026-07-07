@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Identification & étiquette carte Pokémon</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --ink: #1c1b19;
+    --paper: #faf9f6;
+    --card: #ffffff;
+    --line: #dcd9d1;
+    --accent: #2f5d4f;
+    --accent-ink: #eaf2ef;
+    --danger: #a3312d;
+    --gold: #9c7a2e;
+    --gold-bg: #fbf3df;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  .sub { color: #6b6a64; font-size: 14px; margin: 0 0 24px; line-height: 1.5; }
+
+  .steps { display: flex; gap: 8px; margin-bottom: 20px; }
+  .step-pill {
+    flex: 1;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px;
+    border-radius: 8px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    color: #8b897f;
+  }
+  .step-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .step-pill.done { background: var(--accent-ink); color: var(--accent); border-color: var(--accent-ink); }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+  label.mt { margin-top: 16px; }
+  input[type="password"], input[type="text"], input[type="number"], select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--ink);
+  }
+  input:focus, select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  .hint { font-size: 12px; color: #8b897f; margin-top: 8px; line-height: 1.5; }
+  .drop {
+    border: 2px dashed var(--line);
+    border-radius: 12px;
+    padding: 32px 16px;
+    text-align: center;
+    cursor: pointer;
+    color: #6b6a64;
+    font-size: 14px;
+  }
+  .drop:hover { border-color: var(--accent); }
+  #previewFront, #previewBack {
+    max-width: 100%;
+    max-height: 180px;
+    border-radius: 8px;
+    display: none;
+    margin: 10px auto 0;
+  }
+  button {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 16px;
+  }
+  button:hover { opacity: 0.92; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary { background: var(--accent-ink); color: var(--accent); }
+  button.ghost { background: transparent; color: #6b6a64; border: 1px solid var(--line); }
+  #status { font-size: 14px; margin-top: 12px; min-height: 20px; }
+  #status.error { color: var(--danger); }
+
+  .result { display: none; gap: 16px; align-items: flex-start; }
+  .result img { width: 110px; border-radius: 6px; flex-shrink: 0; }
+  .result-fields { flex: 1; min-width: 0; }
+  .result-fields h2 { font-size: 17px; margin: 0 0 4px; }
+  .result-fields .meta { font-size: 13px; color: #6b6a64; margin-bottom: 8px; }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--gold-bg);
+    color: var(--gold);
+    margin: 0 6px 6px 0;
+    letter-spacing: 0.02em;
+  }
+  .badge.cond { background: var(--accent-ink); color: var(--accent); }
+  .price-warning {
+    font-size: 12px;
+    color: var(--gold);
+    background: var(--gold-bg);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .manual-result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-top: 8px;
+    cursor: pointer;
+  }
+  .manual-result:hover { border-color: var(--accent); background: var(--accent-ink); }
+  .manual-result img { width: 34px; height: 47px; object-fit: contain; border-radius: 4px; flex-shrink: 0; }
+  .manual-result .mr-name { font-size: 13px; font-weight: 600; }
+  .manual-result .mr-meta { font-size: 12px; color: #8b897f; }
+  .manual-search-msg { font-size: 13px; color: #6b6a64; margin-top: 8px; }
+
+  .field-edit { margin-top: 14px; }
+  .field-edit label { font-weight: 600; font-size: 12px; color: #6b6a64; }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 8px;
+    vertical-align: -2px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* --- Vue étiquette --- */
+  .preview-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: 8px;
+  }
+  #label {
+    background: #fff;
+    border: 1px solid #000;
+    display: flex;
+    align-items: center;
+    padding: 3mm;
+    gap: 3mm;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  }
+  .label-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    overflow: hidden;
+  }
+  .label-name {
+    font-weight: 700;
+    line-height: 1.15;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .label-price {
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .label-meta {
+    font-weight: 700;
+    font-size: 8px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--gold);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  #qr { flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  #qr img { display: block; }
+
+  @media print {
+    body * { visibility: hidden; }
+    #label, #label * { visibility: visible; }
+    #label { position: fixed; top: 0; left: 0; box-shadow: none; border: none; margin: 0; }
+    @page { margin: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Identification & étiquette Pokémon</h1>
+  <p class="sub">Photographie la carte, l'IA identifie le Pokémon (et l'édition), le prix se remplit depuis TCGdex, puis tu passes directement à l'impression de l'étiquette.</p>
+
+  <label style="display:flex; align-items:center; gap:8px; font-weight:600; font-size:13px; margin-bottom:16px; cursor:pointer;">
+    <input type="checkbox" id="fastMode" style="width:16px; height:16px; margin:0;">
+    Mode Fast — passe directement à l'étiquette après identification
+  </label>
+
+  <div class="steps">
+    <div class="step-pill active" id="pillIdentify">1. Identifier</div>
+    <div class="step-pill" id="pillLabel">2. Étiquette</div>
+  </div>
+
+  <!-- ===================== VUE 1 : IDENTIFICATION ===================== -->
+  <div class="view active" id="viewIdentify">
+
+    <div class="panel">
+      <label for="apiKey">Clé API Anthropic</label>
+      <input type="password" id="apiKey" placeholder="sk-ant-...">
+      <p class="hint" id="apiKeyHint"></p>
+    </div>
+
+    <div class="panel">
+      <label for="supabaseUrl">URL du projet Supabase</label>
+      <input type="text" id="supabaseUrl" placeholder="https://xxxxx.supabase.co">
+      <label for="supabaseKey" class="mt">Clé service_role Supabase</label>
+      <input type="password" id="supabaseKey" placeholder="eyJ...">
+      <p class="hint">
+        Sert à enregistrer chaque carte scannée dans ta base de stock. Les deux valeurs se trouvent dans Supabase sous Project Settings → API. Utilise bien la clé <strong>service_role</strong> (pas "anon public") ici — c'est la seule qui a le droit d'écrire dans la table. Ne colle jamais cette clé secrète ailleurs que dans cet outil, gardé sur ton propre ordinateur.
+        Mémorisée localement comme la clé Anthropic.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div>
+          <label for="cardLang">Langue de la carte</label>
+          <select id="cardLang">
+            <option value="français" selected>Français</option>
+            <option value="anglais">English (US/UK)</option>
+            <option value="japonais">日本語 (Japonais)</option>
+          </select>
+        </div>
+        <div>
+          <label for="cardCondition">État de la carte</label>
+          <select id="cardCondition">
+            <option value="Near Mint">Near Mint</option>
+            <option value="Excellent">Excellent</option>
+            <option value="Good">Good</option>
+            <option value="Played">Played</option>
+            <option value="Poor">Poor</option>
+          </select>
+        </div>
+      </div>
+      <p class="hint">L'IA propose un état d'après la photo (coins, bords, surface, centrage) — c'est une estimation visuelle, vérifie et corrige si besoin avant d'imprimer.</p>
+
+      <div class="row mt">
+        <div>
+          <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+            <input type="checkbox" id="cardEdition" style="width:16px; height:16px; margin:0;">
+            Carte 1ère édition
+          </label>
+
+          <label class="mt" style="display:flex; align-items:center; gap:8px; font-weight:600;">
+            <input type="checkbox" id="cardStamp" style="width:16px; height:16px; margin:0;">
+            Carte tamponnée (Stamp)
+          </label>
+        </div>
+        <div>
+          <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+            <input type="checkbox" id="cardGraded" style="width:16px; height:16px; margin:0;">
+            Gradée
+          </label>
+
+          <div id="gradeWrap" class="mt" style="display:none;">
+            <label for="cardGrade" style="font-weight:600;">Note : <span id="cardGradeValue">10</span></label>
+            <input type="range" id="cardGrade" min="1" max="10" step="0.5" value="10" style="width:100%;">
+          </div>
+        </div>
+      </div>
+
+      <label class="mt">Photos de la carte</label>
+      <div class="row">
+        <div>
+          <div class="drop" id="dropZoneFront">Recto — clique pour choisir/prendre la photo</div>
+          <input type="file" id="fileInputFront" accept="image/*" capture="environment" style="display:none">
+          <img id="previewFront">
+        </div>
+        <div>
+          <div class="drop" id="dropZoneBack">Verso (optionnel) — améliore l'estimation de l'état</div>
+          <input type="file" id="fileInputBack" accept="image/*" capture="environment" style="display:none">
+          <img id="previewBack">
+        </div>
+      </div>
+      <button id="identifyBtn" disabled>Identifier la carte</button>
+      <div id="status"></div>
+    </div>
+
+    <div class="panel">
+      <label for="manualSearchName">Recherche manuelle (si l'IA ou TCGdex se trompe)</label>
+      <input type="text" id="manualSearchName" placeholder="Nom du Pokémon, ex: Forgelina">
+      <button class="secondary" id="manualSearchBtn">Chercher sur TCGdex</button>
+      <div id="manualSearchResults"></div>
+    </div>
+
+    <div class="panel result" id="resultPanel">
+      <img id="resultImg" alt="">
+      <div class="result-fields">
+        <div id="resultBadges"></div>
+        <h2 id="resultName"></h2>
+        <div class="meta" id="resultMeta"></div>
+        <div class="price-warning" id="priceWarning" style="display:none;"></div>
+
+        <div class="field-edit">
+          <label for="editName">Nom (pour l'étiquette, modifiable)</label>
+          <input type="text" id="editName">
+        </div>
+        <div class="field-edit">
+          <label for="editPrice">Prix € (modifiable)</label>
+          <input type="text" id="editPrice">
+        </div>
+
+        <button class="secondary" id="saveStockBtn">Enregistrer en stock</button>
+        <div id="stockStatus" style="font-size:13px; margin-top:8px; min-height:18px;"></div>
+
+        <button id="toLabelBtn">Continuer vers l'étiquette →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== VUE 2 : ÉTIQUETTE ===================== -->
+  <div class="view" id="viewLabel">
+    <div class="panel">
+      <label for="name">Nom de la carte</label>
+      <input id="name" type="text" value="" oninput="render()">
+
+      <label for="price" class="mt">Prix (€)</label>
+      <input id="price" type="text" value="" oninput="render()">
+
+      <label for="url" class="mt">Lien vers la fiche produit (QR code)</label>
+      <input id="url" type="text" value="" oninput="render()">
+
+      <div class="row">
+        <div>
+          <label for="w" class="mt">Largeur étiquette (mm)</label>
+          <input id="w" type="number" value="50" oninput="render()">
+        </div>
+        <div>
+          <label for="h" class="mt">Hauteur étiquette (mm)</label>
+          <input id="h" type="number" value="30" oninput="render()">
+        </div>
+      </div>
+
+      <label class="mt" style="display:flex; align-items:center; gap:8px; font-weight:600;">
+        <input type="checkbox" id="labelEditionCheck" style="width:16px; height:16px; margin:0;" oninput="render()">
+        Afficher "1ère édition" sur l'étiquette
+      </label>
+
+      <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+        <input type="checkbox" id="labelStampCheck" style="width:16px; height:16px; margin:0;" oninput="render()">
+        Afficher "Stamp" sur l'étiquette
+      </label>
+
+      <label for="labelConditionSelect" class="mt">État (affiché sur l'étiquette)</label>
+      <select id="labelConditionSelect" oninput="render()">
+        <option value="Near Mint">Near Mint</option>
+        <option value="Excellent">Excellent</option>
+        <option value="Good">Good</option>
+        <option value="Played">Played</option>
+        <option value="Poor">Poor</option>
+      </select>
+
+      <div class="preview-zone">
+        <div id="label">
+          <div class="label-text">
+            <div class="label-name" id="labelName"></div>
+            <div class="label-meta" id="labelMeta"></div>
+            <div class="label-price" id="labelPrice"></div>
+          </div>
+          <div id="qr"></div>
+        </div>
+      </div>
+
+      <button onclick="printAndReset()">Imprimer l'étiquette</button>
+      <button class="secondary" id="nextCardBtn">Carte suivante →</button>
+      <button class="ghost" id="backBtn">← Retour à l'identification</button>
+      <p class="hint">Au moment d'imprimer, choisis ta Phomemo PM-241BT dans la fenêtre d'impression du navigateur, règle l'échelle sur 100 % (pas de "ajuster à la page"), désactive les en-têtes/pieds de page, et mets les marges sur "Aucune".</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   VUE 1 — IDENTIFICATION
+   ============================================================ */
+const apiKeyInput = document.getElementById('apiKey');
+const apiKeyHint = document.getElementById('apiKeyHint');
+const API_KEY_STORAGE = 'pokemon_tool_anthropic_key';
+let apiKeyStorageWorks = true;
+
+try {
+  const saved = localStorage.getItem(API_KEY_STORAGE);
+  if (saved) apiKeyInput.value = saved;
+} catch (e) {
+  apiKeyStorageWorks = false;
+}
+
+apiKeyInput.addEventListener('input', () => {
+  try {
+    localStorage.setItem(API_KEY_STORAGE, apiKeyInput.value.trim());
+  } catch (e) {
+    apiKeyStorageWorks = false;
+  }
+});
+
+apiKeyHint.innerHTML = apiKeyStorageWorks
+  ? `Nécessaire pour que l'IA lise la carte sur la photo. Ta clé est mémorisée uniquement dans ce navigateur, sur cet appareil (elle n'est jamais envoyée ailleurs qu'à l'API Anthropic) — tu n'auras pas besoin de la recoller au rechargement. Tu peux en créer une sur <span style="text-decoration:underline">console.anthropic.com</span>.`
+  : `Nécessaire pour que l'IA lise la carte sur la photo. Ta clé reste uniquement dans cette page, mais la mémorisation automatique ne fonctionne pas dans cet aperçu (bac à sable) — enregistre le fichier HTML et ouvre-le directement dans ton navigateur pour qu'elle soit retenue. Tu peux en créer une sur <span style="text-decoration:underline">console.anthropic.com</span>.`;
+
+// Identifiants Supabase : mêmes principes de mémorisation locale que la clé Anthropic
+const supabaseUrlInput = document.getElementById('supabaseUrl');
+const supabaseKeyInput = document.getElementById('supabaseKey');
+try {
+  const savedUrl = localStorage.getItem('pokemon_tool_supabase_url');
+  const savedKey = localStorage.getItem('pokemon_tool_supabase_key');
+  if (savedUrl) supabaseUrlInput.value = savedUrl;
+  if (savedKey) supabaseKeyInput.value = savedKey;
+} catch (e) { /* bac à sable : pas de mémorisation, pas bloquant */ }
+
+supabaseUrlInput.addEventListener('input', () => {
+  try { localStorage.setItem('pokemon_tool_supabase_url', supabaseUrlInput.value.trim()); } catch (e) {}
+});
+supabaseKeyInput.addEventListener('input', () => {
+  try { localStorage.setItem('pokemon_tool_supabase_key', supabaseKeyInput.value.trim()); } catch (e) {}
+});
+
+const dropZoneFront = document.getElementById('dropZoneFront');
+const fileInputFront = document.getElementById('fileInputFront');
+const previewFront = document.getElementById('previewFront');
+const dropZoneBack = document.getElementById('dropZoneBack');
+const fileInputBack = document.getElementById('fileInputBack');
+const previewBack = document.getElementById('previewBack');
+const identifyBtn = document.getElementById('identifyBtn');
+const statusEl = document.getElementById('status');
+const resultPanel = document.getElementById('resultPanel');
+
+let frontImage = null, frontMediaType = 'image/jpeg';
+let backImage = null, backMediaType = 'image/jpeg';
+let lastCard = null; // dernière fiche TCGdex trouvée
+let lastInfo = null; // dernière lecture IA (holo, etc.)
+let lastSeries = null; // bloc/série de la dernière carte (id, nom, logo)
+let lastSlug = null; // slug unique pour la page produit de cette carte
+
+dropZoneFront.addEventListener('click', () => fileInputFront.click());
+dropZoneBack.addEventListener('click', () => fileInputBack.click());
+
+function readImage(file, onDone) {
+  const reader = new FileReader();
+  reader.onload = () => onDone(reader.result.split(',')[1], reader.result);
+  reader.readAsDataURL(file);
+}
+
+fileInputFront.addEventListener('change', () => {
+  const file = fileInputFront.files[0];
+  if (!file) return;
+  frontMediaType = file.type || 'image/jpeg';
+  readImage(file, (b64, dataUrl) => {
+    frontImage = b64;
+    previewFront.src = dataUrl;
+    previewFront.style.display = 'block';
+    identifyBtn.disabled = false;
+    statusEl.textContent = '';
+    statusEl.className = '';
+    resultPanel.style.display = 'none';
+    document.getElementById('stockStatus').textContent = '';
+  });
+});
+
+fileInputBack.addEventListener('change', () => {
+  const file = fileInputBack.files[0];
+  if (!file) return;
+  backMediaType = file.type || 'image/jpeg';
+  readImage(file, (b64, dataUrl) => {
+    backImage = b64;
+    previewBack.src = dataUrl;
+    previewBack.style.display = 'block';
+  });
+});
+
+function setStatus(text, isError) {
+  statusEl.textContent = text;
+  statusEl.className = isError ? 'error' : '';
+}
+
+async function identify() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) { setStatus('Colle ta clé API Anthropic ci-dessus.', true); return; }
+  if (!frontImage) { setStatus('Choisis au moins la photo du recto.', true); return; }
+
+  identifyBtn.disabled = true;
+  statusEl.innerHTML = '<span class="spinner"></span> Lecture de la carte par l\'IA...';
+  statusEl.className = '';
+
+  try {
+    const imageBlocks = [
+      { type: 'image', source: { type: 'base64', media_type: frontMediaType, data: frontImage } }
+    ];
+    if (backImage) {
+      imageBlocks.push({ type: 'image', source: { type: 'base64', media_type: backMediaType, data: backImage } });
+    }
+
+    const promptText = `Voici ${backImage ? 'le recto (première image) et le verso (deuxième image)' : 'le recto'} d'une carte Pokémon (elle est imprimée en ${document.getElementById('cardLang').value}, éventuellement sous blister/protection). ${backImage ? "Utilise le verso en plus du recto pour mieux évaluer l'état (coins, bords, plis, rayures)." : ''} Pour l'état ("condition"), applique des critères stricts et retiens le PIRE défaut visible sur l'une ou l'autre face : "Near Mint" = aucun défaut visible, coins et bords parfaits ; "Excellent" = usure minime des bords, coins encore nets ; "Good" = léger blanchiment des bords/coins, petites rayures de surface, sans pli ; "Played" = usure nette, coins arrondis, rayures visibles, MAIS sans pli traversant la carte ; "Poor" = au moins un des défauts suivants : pli ou craquelure visible qui traverse l'illustration ou le vernis, coin(s) cassé(s)/plié(s), rayures profondes multiples, déchirure, écriture. Un pli ou une ligne de craquelure visible dans le vernis holo (même fine) classe TOUJOURS la carte en "Poor", quel que soit l'état des coins. Réponds UNIQUEMENT avec un objet JSON, sans balises markdown, sans texte autour, au format exact : {"name": "nom du Pokémon EXACTEMENT tel qu'écrit sur la carte", "number": "numéro de carte tel qu'imprimé, ex 31/82, sinon vide", "set_hint": "nom du set tel qu'identifiable sur la carte ou par son symbole, sinon vide", "holo": true ou false si la carte est manifestement holographique, "condition": une valeur EXACTEMENT parmi "Near Mint", "Excellent", "Good", "Played", "Poor"}`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 400,
+        messages: [{
+          role: 'user',
+          content: [...imageBlocks, { type: 'text', text: promptText }]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error('Erreur API Anthropic (' + response.status + ') : ' + errText.slice(0, 200));
+    }
+
+    const data = await response.json();
+    const textBlock = data.content.find(b => b.type === 'text');
+    if (!textBlock) throw new Error('Réponse IA vide.');
+
+    const clean = textBlock.text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    const validConditions = ['Near Mint', 'Excellent', 'Good', 'Played', 'Poor'];
+    if (validConditions.includes(parsed.condition)) {
+      document.getElementById('cardCondition').value = parsed.condition;
+    }
+
+    statusEl.innerHTML = '<span class="spinner"></span> Recherche dans la base Pokémon TCG...';
+    await lookupCard(parsed);
+
+  } catch (err) {
+    setStatus(err.message || 'Une erreur est survenue.', true);
+  } finally {
+    identifyBtn.disabled = false;
+  }
+}
+
+const LANG_CODES = { 'français': 'fr', 'anglais': 'en', 'japonais': 'ja' };
+
+function normalizeName(s) {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
+}
+
+function nameMatches(cardName, expected) {
+  const a = normalizeName(cardName);
+  const b = normalizeName(expected);
+  if (!a || !b) return false;
+  return a.includes(b) || b.includes(a);
+}
+
+async function fetchTcgdex(lang, params) {
+  const url = `https://api.tcgdex.net/v2/${lang}/cards?${params}`;
+  const resp = await fetch(url);
+  if (!resp.ok) return [];
+  return await resp.json();
+}
+
+// Génère plusieurs variantes plausibles du nom lu par l'IA, pour compenser
+// les différences espace/tiret ou suffixe (ex/GX/V) entre la lecture et la base TCGdex.
+function nameVariants(name) {
+  const variants = [name];
+  if (name.includes('-')) variants.push(name.replace(/-/g, ' '));
+  if (name.includes(' ')) variants.push(name.replace(/ /g, '-'));
+  const bare = name.replace(/[\s-]?(ex|gx|v|vmax|vstar|EX|GX|V|VMAX|VSTAR)$/, '').trim();
+  if (bare && bare !== name) variants.push(bare);
+  return [...new Set(variants)];
+}
+
+async function lookupCard(info) {
+  const lang = LANG_CODES[document.getElementById('cardLang').value] || 'fr';
+  const cardNumber = (info.number || '').split('/')[0].trim();
+  let cards = [];
+  const variants = info.name ? nameVariants(info.name) : [];
+
+  if (info.name && cardNumber) {
+    for (const variant of variants) {
+      let params = `name=${encodeURIComponent(variant)}&localId=eq:${encodeURIComponent(cardNumber)}`;
+      let results = await fetchTcgdex(lang, params);
+      cards = results.filter(c => nameMatches(c.name, info.name));
+      if (cards.length > 0) break;
+    }
+  }
+
+  if (cards.length === 0 && info.name) {
+    for (const variant of variants) {
+      let results = await fetchTcgdex(lang, `name=${encodeURIComponent(variant)}`);
+      cards = results.filter(c => nameMatches(c.name, info.name));
+      if (cards.length > 0) break;
+    }
+  }
+
+  if (cards.length === 0) {
+    setStatus(`L'IA a lu "${info.name}" (${info.set_hint || 'set inconnu'} ${info.number || ''}) mais aucune correspondance trouvée dans TCGdex. Vérifie la photo, utilise la recherche manuelle ci-dessous, ou vérifie la langue sélectionnée.`, true);
+    document.getElementById('manualSearchName').value = info.name || '';
+    return;
+  }
+
+  let matches = cards;
+  if (info.set_hint) {
+    const bySet = matches.filter(c => normalizeName(c.set?.name).includes(normalizeName(info.set_hint)) || normalizeName(info.set_hint).includes(normalizeName(c.set?.name)));
+    if (bySet.length > 0) matches = bySet;
+  }
+  let brief = matches[0];
+  if (cardNumber) {
+    const refined = matches.find(c => String(c.localId) === cardNumber);
+    if (refined) brief = refined;
+  }
+
+  const fullResp = await fetch(`https://api.tcgdex.net/v2/${lang}/cards/${brief.id}`);
+  const full = await fullResp.json();
+
+  showResult(full, info);
+}
+
+function escapeHtmlLite(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+async function runManualSearch() {
+  const query = document.getElementById('manualSearchName').value.trim();
+  const resultsEl = document.getElementById('manualSearchResults');
+  if (!query) { resultsEl.innerHTML = ''; return; }
+
+  const lang = LANG_CODES[document.getElementById('cardLang').value] || 'fr';
+  resultsEl.innerHTML = '<div class="manual-search-msg">Recherche...</div>';
+
+  const results = await fetchTcgdex(lang, `name=${encodeURIComponent(query)}`);
+  if (!results.length) {
+    resultsEl.innerHTML = '<div class="manual-search-msg">Aucun résultat pour ce nom dans cette langue.</div>';
+    return;
+  }
+
+  resultsEl.innerHTML = results.slice(0, 25).map(c => `
+    <div class="manual-result" data-id="${escapeHtmlLite(c.id)}">
+      <img src="${c.image ? escapeHtmlLite(c.image) + '/low.png' : ''}" alt="">
+      <div>
+        <div class="mr-name">${escapeHtmlLite(c.name)}</div>
+        <div class="mr-meta">${escapeHtmlLite(c.set?.name || 'Set inconnu')} · ${escapeHtmlLite(String(c.localId || '?'))}</div>
+      </div>
+    </div>
+  `).join('');
+
+  resultsEl.querySelectorAll('.manual-result').forEach(el => {
+    el.addEventListener('click', async () => {
+      resultsEl.innerHTML = '<div class="manual-search-msg">Chargement de la fiche...</div>';
+      try {
+        const fullResp = await fetch(`https://api.tcgdex.net/v2/${lang}/cards/${el.dataset.id}`);
+        const full = await fullResp.json();
+        showResult(full, lastInfo || {});
+        resultsEl.innerHTML = '';
+        setStatus('Carte trouvée via la recherche manuelle.', false);
+      } catch (err) {
+        resultsEl.innerHTML = `<div class="manual-search-msg">Erreur de chargement : ${err.message}</div>`;
+      }
+    });
+  });
+}
+
+document.getElementById('manualSearchBtn').addEventListener('click', runManualSearch);
+document.getElementById('manualSearchName').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runManualSearch();
+});
+
+// Récupère le bloc/série (Wizard, EX, Sword & Shield...) et son logo pour la carte en cours.
+// Deux appels TCGdex nécessaires : le set ne référence que l'id/nom de la série, pas son logo.
+async function fetchSeriesInfo(card) {
+  if (!card?.set?.id) return;
+  const lang = LANG_CODES[document.getElementById('cardLang').value] || 'fr';
+  try {
+    const setResp = await fetch(`https://api.tcgdex.net/v2/${lang}/sets/${card.set.id}`);
+    if (!setResp.ok) return;
+    const setData = await setResp.json();
+    if (!setData.serie?.id) return;
+
+    const serieResp = await fetch(`https://api.tcgdex.net/v2/${lang}/series/${setData.serie.id}`);
+    const serieData = serieResp.ok ? await serieResp.json() : null;
+
+    lastSeries = {
+      id: setData.serie.id,
+      name: setData.serie.name || null,
+      logo: serieData?.logo || null
+    };
+  } catch (err) {
+    console.warn('Récupération de la série impossible :', err);
+  }
+}
+
+function showResult(card, info) {
+  lastCard = card;
+  lastInfo = info;
+  lastSeries = null; // remis à zéro, rempli en tâche de fond par fetchSeriesInfo()
+
+  // Slug unique pour la page produit, généré une fois pour toute la vie de cette identification
+  const uniqueSuffix = Math.random().toString(36).slice(2, 6);
+  lastSlug = [card.name, card.set?.name, card.localId].filter(Boolean).map(slugify).join('-') + '-' + uniqueSuffix;
+
+  document.getElementById('resultImg').src = card.image ? `${card.image}/high.png` : '';
+  document.getElementById('resultName').textContent = card.name;
+  document.getElementById('resultMeta').innerHTML =
+    `${card.set?.name || 'Set inconnu'} · ${card.localId || '?'} · ${card.rarity || 'Rareté inconnue'}`;
+
+  fetchSeriesInfo(card);
+
+  updateBadgesAndWarning();
+
+  const cm = card.pricing?.cardmarket;
+  const isHolo = !!(info && info.holo);
+  // TCGplayer expose plusieurs clés possibles selon le set (normal/reverse la plupart du temps,
+  // holofoil/reverseHolofoil sur d'anciens sets) : on prend la plus pertinente selon holo ou non.
+  const tcgVariants = card.pricing?.tcgplayer || {};
+  const tcg = isHolo
+    ? (tcgVariants.holofoil || tcgVariants.reverseHolofoil || tcgVariants.reverse || tcgVariants.normal)
+    : (tcgVariants.normal || tcgVariants.reverse || tcgVariants.holofoil);
+
+  let priceText = 'Prix de marché non disponible';
+  let priceValue = null;
+  const useHolo = isHolo && cm && cm['avg-holo'];
+  if (cm && (useHolo || cm.avg || cm.trend)) {
+    priceValue = useHolo ? (cm['avg-holo'] || cm['trend-holo']) : (cm.avg || cm.trend);
+    priceText = priceValue.toFixed(2);
+  } else if (tcg && tcg.marketPrice) {
+    priceValue = tcg.marketPrice;
+    priceText = priceValue.toFixed(2);
+  }
+
+  document.getElementById('editName').value = buildLabelName(card);
+  document.getElementById('editPrice').value = priceValue !== null ? priceText : '';
+
+  resultPanel.style.display = 'flex';
+  setStatus('Carte trouvée.', false);
+
+  if (document.getElementById('fastMode').checked) {
+    goToLabel();
+  }
+}
+
+// Nom "carte + numéro + set", prêt à imprimer tel quel sur l'étiquette
+function buildLabelName(card) {
+  const total = card.set?.cardCount?.total;
+  const numberStr = card.localId ? (total ? `${card.localId}/${total}` : `${card.localId}`) : '';
+  const setName = card.set?.name || '';
+  const suffix = [numberStr, setName].filter(Boolean).join(' - ');
+  return suffix ? `${card.name} · ${suffix}` : card.name;
+}
+
+// Recalcule badges + avertissement à partir de la case Édition (contrôlée par toi),
+// appelé à l'identification ET à chaque clic sur la case.
+function updateBadgesAndWarning() {
+  if (!lastCard) return;
+  const card = lastCard;
+  const info = lastInfo;
+  const isFirstEdition = document.getElementById('cardEdition').checked;
+  const isStamp = document.getElementById('cardStamp').checked;
+  const isGraded = document.getElementById('cardGraded').checked;
+  const grade = document.getElementById('cardGrade').value;
+  const condition = document.getElementById('cardCondition').value;
+
+  const badgesEl = document.getElementById('resultBadges');
+  let badges = '';
+  if (isFirstEdition) {
+    badges += `<span class="badge">1ère édition</span>`;
+  }
+  if (isStamp) {
+    badges += `<span class="badge">Stamp</span>`;
+  }
+  if (isGraded) {
+    badges += `<span class="badge">Gradée ${grade}</span>`;
+  }
+  if (info && info.holo) {
+    badges += `<span class="badge">Holo</span>`;
+  }
+  badges += `<span class="badge cond">${condition}</span>`;
+  badgesEl.innerHTML = badges;
+
+  const warnEl = document.getElementById('priceWarning');
+  let warnMsgs = [];
+  if (isFirstEdition) {
+    warnMsgs.push(`Carte 1ère édition : le prix ci-dessous est celui de la version standard, TCGdex ne distingue pas de prix spécifique 1ère édition. Ajuste le prix manuellement.`);
+  }
+  if (isStamp) {
+    warnMsgs.push(`Carte tamponnée (Stamp) : TCGdex ne référence pas de prix spécifique pour cette variante, ajuste le prix manuellement si elle vaut plus que la version standard.`);
+  }
+  if (isGraded) {
+    warnMsgs.push(`Carte gradée ${grade} : le prix ci-dessous ne tient pas compte de la gradation, généralement plus valorisée qu'une carte non gradée. Ajuste le prix manuellement.`);
+  }
+  warnMsgs.push(`Le prix ne tient pas compte de l'état ("${condition}") : ajuste-le si la carte n'est pas en Near Mint.`);
+  warnEl.innerHTML = warnMsgs.join('<br>');
+  warnEl.style.display = 'block';
+}
+
+document.getElementById('cardEdition').addEventListener('change', updateBadgesAndWarning);
+document.getElementById('cardStamp').addEventListener('change', updateBadgesAndWarning);
+
+const cardGradedCheck = document.getElementById('cardGraded');
+const gradeWrap = document.getElementById('gradeWrap');
+const cardGradeInput = document.getElementById('cardGrade');
+const cardGradeValue = document.getElementById('cardGradeValue');
+
+cardGradedCheck.addEventListener('change', () => {
+  gradeWrap.style.display = cardGradedCheck.checked ? 'block' : 'none';
+  updateBadgesAndWarning();
+});
+cardGradeInput.addEventListener('input', () => {
+  cardGradeValue.textContent = cardGradeInput.value;
+  updateBadgesAndWarning();
+});
+document.getElementById('cardCondition').addEventListener('change', updateBadgesAndWarning);
+
+identifyBtn.addEventListener('click', identify);
+
+// Mode Fast : mémorisé localement comme la clé API
+const fastModeInput = document.getElementById('fastMode');
+try {
+  fastModeInput.checked = localStorage.getItem('pokemon_tool_fast_mode') === 'true';
+} catch (e) { /* bac à sable : reste décoché par défaut */ }
+fastModeInput.addEventListener('change', () => {
+  try { localStorage.setItem('pokemon_tool_fast_mode', fastModeInput.checked); } catch (e) {}
+});
+
+// Passage à la vue étiquette, préremplie avec les infos identifiées
+function goToLabel() {
+  const name = document.getElementById('editName').value.trim();
+  const price = document.getElementById('editPrice').value.trim();
+
+  document.getElementById('name').value = name;
+  document.getElementById('price').value = price;
+  document.getElementById('labelEditionCheck').checked = document.getElementById('cardEdition').checked;
+  document.getElementById('labelStampCheck').checked = document.getElementById('cardStamp').checked;
+  document.getElementById('labelConditionSelect').value = document.getElementById('cardCondition').value;
+
+  if (lastCard && lastSlug) {
+    // URL réelle de la page produit (dossier carte-pokemon/ pour une adresse sans .html)
+    document.getElementById('url').value = `/carte-pokemon/?slug=${encodeURIComponent(lastSlug)}`;
+  }
+
+  showView('label');
+  render();
+}
+
+function base64ToBlob(base64, mediaType) {
+  const byteChars = atob(base64);
+  const byteNumbers = new Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+  return new Blob([new Uint8Array(byteNumbers)], { type: mediaType });
+}
+
+// Envoie une image (recto ou verso) vers le bucket "cartes-photos" et renvoie son URL publique (ou null si échec)
+async function uploadImageToStorage(supabaseUrl, serviceKey, base64, mediaType) {
+  if (!base64) return null;
+  try {
+    const blob = base64ToBlob(base64, mediaType);
+    const ext = (mediaType.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    const resp = await fetch(`${supabaseUrl}/storage/v1/object/cartes-photos/${filename}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': mediaType,
+        'apikey': serviceKey,
+        'Authorization': `Bearer ${serviceKey}`
+      },
+      body: blob
+    });
+
+    if (!resp.ok) {
+      console.error('Échec envoi photo :', await resp.text());
+      return null;
+    }
+
+    return `${supabaseUrl}/storage/v1/object/public/cartes-photos/${filename}`;
+  } catch (err) {
+    console.error('Erreur upload photo :', err);
+    return null;
+  }
+}
+
+// Construit un slug lisible (nom-set-numero) pour nommer l'image sur ton propre stockage
+function slugify(str) {
+  return (str || '')
+    .toString()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // retire les accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+// Télécharge l'image officielle TCGdex et la réenregistre dans ton bucket, sous un nom basé sur le slug,
+// pour qu'elle soit vraiment hébergée chez toi plutôt qu'un simple lien vers TCGdex.
+async function rehostStockImage(supabaseUrl, serviceKey, tcgdexImageUrl, card) {
+  if (!tcgdexImageUrl) return null;
+  try {
+    const resp = await fetch(tcgdexImageUrl);
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+
+    const slug = [card.name, card.set?.name, card.localId].filter(Boolean).map(slugify).join('-');
+    const filename = `stock-${slug}.png`;
+
+    const uploadResp = await fetch(`${supabaseUrl}/storage/v1/object/cartes-photos/${filename}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'image/png',
+        'apikey': serviceKey,
+        'Authorization': `Bearer ${serviceKey}`,
+        // écrase l'ancienne image si une carte identique a déjà été enregistrée (même slug)
+        'x-upsert': 'true'
+      },
+      body: blob
+    });
+
+    if (!uploadResp.ok) {
+      console.warn('Échec réhébergement image officielle :', await uploadResp.text());
+      return null;
+    }
+
+    return `${supabaseUrl}/storage/v1/object/public/cartes-photos/${filename}`;
+  } catch (err) {
+    console.warn('Erreur réhébergement image officielle :', err);
+    return null;
+  }
+}
+
+// Vérifie si une carte identique (même carte TCGdex, même état, même édition/stamp) est déjà en stock
+async function checkDuplicate(supabaseUrl, serviceKey) {
+  if (!lastCard?.id) return false;
+  try {
+    const condition = encodeURIComponent(document.getElementById('cardCondition').value);
+    const firstEdition = document.getElementById('cardEdition').checked;
+    const stamp = document.getElementById('cardStamp').checked;
+    const params = `tcgdex_id=eq.${encodeURIComponent(lastCard.id)}&condition=eq.${condition}&first_edition=eq.${firstEdition}&stamp=eq.${stamp}&status=eq.en_stock&select=id`;
+    const resp = await fetch(`${supabaseUrl}/rest/v1/cartes?${params}`, {
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+    });
+    if (!resp.ok) return false;
+    const rows = await resp.json();
+    return rows.length > 0;
+  } catch (err) {
+    console.warn('Vérification doublon impossible :', err);
+    return false;
+  }
+}
+
+async function saveToStock(force) {
+  const url = supabaseUrlInput.value.trim().replace(/\/$/, '');
+  const key = supabaseKeyInput.value.trim();
+  const stockStatusEl = document.getElementById('stockStatus');
+
+  if (!url || !key) {
+    stockStatusEl.textContent = 'Renseigne l\'URL et la clé service_role Supabase en haut de la page.';
+    stockStatusEl.style.color = 'var(--danger)';
+    return;
+  }
+  if (!lastCard) return;
+
+  const saveBtn = document.getElementById('saveStockBtn');
+  saveBtn.disabled = true;
+  stockStatusEl.style.color = '';
+
+  if (!force) {
+    stockStatusEl.textContent = 'Vérification des doublons...';
+    const isDuplicate = await checkDuplicate(url, key);
+    if (isDuplicate) {
+      stockStatusEl.style.color = 'var(--gold)';
+      stockStatusEl.innerHTML = 'Une carte identique (même carte, même état, même édition) est déjà en stock. ' +
+        '<button class="secondary" id="forceSaveBtn" style="margin-top:8px;">Enregistrer quand même</button>';
+      document.getElementById('forceSaveBtn').addEventListener('click', () => saveToStock(true));
+      saveBtn.disabled = false;
+      return;
+    }
+  }
+
+  stockStatusEl.textContent = 'Envoi des photos et hébergement de l\'illustration...';
+
+  const photoUrl = await uploadImageToStorage(url, key, frontImage, frontMediaType);
+  const tcgdexUrl = lastCard.image ? `${lastCard.image}/high.png` : null;
+  const rehostedImageUrl = await rehostStockImage(url, key, tcgdexUrl, lastCard);
+  const photoBackUrl = await uploadImageToStorage(url, key, backImage, backMediaType);
+
+  stockStatusEl.textContent = 'Enregistrement en cours...';
+
+  const payload = {
+    tcgdex_id: lastCard.id,
+    slug: lastSlug,
+    name: lastCard.name,
+    set_name: lastCard.set?.name || null,
+    card_number: lastCard.localId ? (lastCard.set?.cardCount?.total ? `${lastCard.localId}/${lastCard.set.cardCount.total}` : String(lastCard.localId)) : null,
+    rarity: lastCard.rarity || null,
+    lang: document.getElementById('cardLang').value,
+    condition: document.getElementById('cardCondition').value,
+    first_edition: document.getElementById('cardEdition').checked,
+    stamp: document.getElementById('cardStamp').checked,
+    graded: document.getElementById('cardGraded').checked,
+    grade: document.getElementById('cardGraded').checked ? parseFloat(document.getElementById('cardGrade').value) : null,
+    series_id: lastSeries?.id || null,
+    series_name: lastSeries?.name || null,
+    series_logo: lastSeries?.logo || null,
+    holo: !!(lastInfo && lastInfo.holo),
+    price: parseFloat(document.getElementById('editPrice').value) || null,
+    status: 'en_stock',
+    // Image officielle TCGdex : utilisée pour la vignette de la vitrine (avec filigrane)
+    image_url: rehostedImageUrl || tcgdexUrl,
+    // Tes vraies photos : affichées au clic sur l'annonce
+    photo_url: photoUrl,
+    photo_back_url: photoBackUrl
+  };
+
+  try {
+    const resp = await fetch(`${url}/rest/v1/cartes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': key,
+        'Authorization': `Bearer ${key}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`Erreur Supabase (${resp.status}) : ${errText.slice(0, 200)}`);
+    }
+
+    stockStatusEl.style.color = 'var(--accent)';
+    stockStatusEl.textContent = '✓ Carte enregistrée en stock.';
+  } catch (err) {
+    stockStatusEl.style.color = 'var(--danger)';
+    stockStatusEl.textContent = err.message || 'Erreur lors de l\'enregistrement.';
+  } finally {
+    saveBtn.disabled = false;
+  }
+}
+
+document.getElementById('saveStockBtn').addEventListener('click', () => saveToStock(false));
+
+document.getElementById('toLabelBtn').addEventListener('click', goToLabel);
+
+document.getElementById('backBtn').addEventListener('click', () => showView('identify'));
+
+document.getElementById('nextCardBtn').addEventListener('click', () => {
+  // Photos
+  frontImage = null; backImage = null;
+  fileInputFront.value = '';
+  fileInputBack.value = '';
+  previewFront.src = '';
+  previewFront.style.display = 'none';
+  previewBack.src = '';
+  previewBack.style.display = 'none';
+  identifyBtn.disabled = true;
+
+  // Coches et champs de la vue 1
+  document.getElementById('cardEdition').checked = false;
+  document.getElementById('cardStamp').checked = false;
+  document.getElementById('cardGraded').checked = false;
+  document.getElementById('cardGrade').value = '10';
+  document.getElementById('cardGradeValue').textContent = '10';
+  document.getElementById('gradeWrap').style.display = 'none';
+  document.getElementById('cardCondition').value = 'Near Mint';
+
+  // Résultat et statut
+  resultPanel.style.display = 'none';
+  setStatus('', false);
+  document.getElementById('stockStatus').textContent = '';
+  document.getElementById('manualSearchName').value = '';
+  document.getElementById('manualSearchResults').innerHTML = '';
+  lastCard = null;
+  lastInfo = null;
+
+  showView('identify');
+  dropZoneFront.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+function showView(name) {
+  document.getElementById('viewIdentify').classList.toggle('active', name === 'identify');
+  document.getElementById('viewLabel').classList.toggle('active', name === 'label');
+  document.getElementById('pillIdentify').classList.toggle('active', name === 'identify');
+  document.getElementById('pillIdentify').classList.toggle('done', name === 'label');
+  document.getElementById('pillLabel').classList.toggle('active', name === 'label');
+}
+
+/* ============================================================
+   VUE 2 — ÉTIQUETTE
+   ============================================================ */
+function mmToPx(mm) {
+  return mm * (96 / 25.4);
+}
+
+function fitText(el, maxWidth, maxHeight, startPx, minPx) {
+  let fs = startPx;
+  el.style.fontSize = fs + 'px';
+  while (fs > minPx && (el.scrollWidth > maxWidth || el.scrollHeight > maxHeight)) {
+    fs -= 1;
+    el.style.fontSize = fs + 'px';
+  }
+  return fs;
+}
+
+function render() {
+  const name = document.getElementById('name').value || 'Nom de la carte';
+  const price = document.getElementById('price').value || '0.00';
+  const url = document.getElementById('url').value || '';
+  const wMm = parseFloat(document.getElementById('w').value) || 50;
+  const hMm = parseFloat(document.getElementById('h').value) || 30;
+  const showEdition = document.getElementById('labelEditionCheck').checked;
+  const showStamp = document.getElementById('labelStampCheck').checked;
+  const condition = document.getElementById('labelConditionSelect').value;
+
+  const nameEl = document.getElementById('labelName');
+  const priceEl = document.getElementById('labelPrice');
+  const metaEl = document.getElementById('labelMeta');
+  nameEl.textContent = name;
+  priceEl.textContent = price + ' €';
+
+  const metaParts = [];
+  if (showEdition) metaParts.push('1ère édition');
+  if (showStamp) metaParts.push('Stamp');
+  if (condition) metaParts.push(condition);
+  const metaText = metaParts.join(' · ');
+  metaEl.textContent = metaText;
+  metaEl.style.display = metaText ? 'block' : 'none';
+
+  const label = document.getElementById('label');
+  label.style.width = mmToPx(wMm) + 'px';
+  label.style.height = mmToPx(hMm) + 'px';
+
+  const qrSizeMm = Math.max(hMm - 6, 10);
+  const qrSizePx = Math.round(mmToPx(qrSizeMm));
+
+  const qrDiv = document.getElementById('qr');
+  qrDiv.innerHTML = '';
+  qrDiv.style.width = qrSizePx + 'px';
+  qrDiv.style.height = qrSizePx + 'px';
+  new QRCode(qrDiv, {
+    text: url || ' ',
+    width: qrSizePx,
+    height: qrSizePx,
+    correctLevel: QRCode.CorrectLevel.L
+  });
+
+  requestAnimationFrame(() => {
+    const textEl = document.querySelector('.label-text');
+    const textWidth = textEl.clientWidth;
+    const textHeight = textEl.clientHeight;
+
+    // 1) Ligne édition/état : petite taille fixe, juste réduite si elle déborde en largeur
+    if (metaText) {
+      fitText(metaEl, textWidth, mmToPx(hMm * 0.16), 9, 6);
+    }
+    const metaH = metaText ? metaEl.scrollHeight : 0;
+
+    // 2) Prix : une seule ligne, priorité sur l'espace, plafonné pour ne pas écraser le nom
+    fitText(priceEl, textWidth, textHeight * 0.45, mmToPx(hMm * 0.42), 8);
+    const priceH = priceEl.scrollHeight;
+
+    // 3) Nom : ce qu'il reste réellement une fois édition/état + prix mesurés (plus de ratio fixe qui débordait)
+    const gap = 4;
+    const nameMaxHeight = Math.max(textHeight - metaH - priceH - gap, mmToPx(hMm * 0.15));
+    fitText(nameEl, textWidth, nameMaxHeight, mmToPx(hMm * 0.34), 7);
+  });
+}
+
+function printAndReset() {
+  window.print();
+}
+
+document.getElementById('url').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') printAndReset();
+});
+</script>
+</body>
+</html>
