@@ -750,7 +750,8 @@ async function saveToStock() {
     stamp: document.getElementById('cardStamp').checked,
     holo: !!(lastInfo && lastInfo.holo),
     price: parseFloat(document.getElementById('editPrice').value) || null,
-    status: 'en_stock'
+    status: 'en_stock',
+    image_url: lastCard.image ? `${lastCard.image}/high.png` : null
   };
 
   try {
