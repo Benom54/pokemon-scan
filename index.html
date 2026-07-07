@@ -712,9 +712,11 @@ document.getElementById('manualSearchName').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') runManualSearch();
 });
 
+let seriesRequestId = 0; // jeton pour ignorer les réponses "en retard" d'un scan précédent
+
 // Récupère le bloc/série (Wizard, EX, Sword & Shield...) et son logo pour la carte en cours.
 // Deux appels TCGdex nécessaires : le set ne référence que l'id/nom de la série, pas son logo.
-async function fetchSeriesInfo(card) {
+async function fetchSeriesInfo(card, requestId) {
   if (!card?.set?.id) return;
   const lang = LANG_CODES[document.getElementById('cardLang').value] || 'fr';
   try {
@@ -726,11 +728,16 @@ async function fetchSeriesInfo(card) {
     const serieResp = await fetch(`https://api.tcgdex.net/v2/${lang}/series/${setData.serie.id}`);
     const serieData = serieResp.ok ? await serieResp.json() : null;
 
+    // Si un scan plus récent a démarré entre-temps, on jette cette réponse au lieu d'écraser lastSeries
+    if (requestId !== seriesRequestId) return;
+
     lastSeries = {
       id: setData.serie.id,
       name: setData.serie.name || null,
       logo: serieData?.logo ? `${serieData.logo}.png` : null
     };
+    // Si le résultat est encore affiché à l'écran pour cette même carte, on met à jour le badge de suite
+    if (lastCard === card) updateBadgesAndWarning();
   } catch (err) {
     console.warn('Récupération de la série impossible :', err);
   }
@@ -750,7 +757,8 @@ function showResult(card, info) {
   document.getElementById('resultMeta').innerHTML =
     `${card.set?.name || 'Set inconnu'} · ${card.localId || '?'} · ${card.rarity || 'Rareté inconnue'}`;
 
-  fetchSeriesInfo(card);
+  seriesRequestId++;
+  fetchSeriesInfo(card, seriesRequestId);
 
   updateBadgesAndWarning();
 
