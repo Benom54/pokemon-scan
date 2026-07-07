@@ -476,6 +476,7 @@ let frontImage = null, frontMediaType = 'image/jpeg';
 let backImage = null, backMediaType = 'image/jpeg';
 let lastCard = null; // dernière fiche TCGdex trouvée
 let lastInfo = null; // dernière lecture IA (holo, etc.)
+let lastSeries = null; // bloc/série de la dernière carte (id, nom, logo)
 
 dropZoneFront.addEventListener('click', () => fileInputFront.click());
 dropZoneBack.addEventListener('click', () => fileInputBack.click());
@@ -710,14 +711,41 @@ document.getElementById('manualSearchName').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') runManualSearch();
 });
 
+// Récupère le bloc/série (Wizard, EX, Sword & Shield...) et son logo pour la carte en cours.
+// Deux appels TCGdex nécessaires : le set ne référence que l'id/nom de la série, pas son logo.
+async function fetchSeriesInfo(card) {
+  if (!card?.set?.id) return;
+  const lang = LANG_CODES[document.getElementById('cardLang').value] || 'fr';
+  try {
+    const setResp = await fetch(`https://api.tcgdex.net/v2/${lang}/sets/${card.set.id}`);
+    if (!setResp.ok) return;
+    const setData = await setResp.json();
+    if (!setData.serie?.id) return;
+
+    const serieResp = await fetch(`https://api.tcgdex.net/v2/${lang}/series/${setData.serie.id}`);
+    const serieData = serieResp.ok ? await serieResp.json() : null;
+
+    lastSeries = {
+      id: setData.serie.id,
+      name: setData.serie.name || null,
+      logo: serieData?.logo || null
+    };
+  } catch (err) {
+    console.warn('Récupération de la série impossible :', err);
+  }
+}
+
 function showResult(card, info) {
   lastCard = card;
   lastInfo = info;
+  lastSeries = null; // remis à zéro, rempli en tâche de fond par fetchSeriesInfo()
 
   document.getElementById('resultImg').src = card.image ? `${card.image}/high.png` : '';
   document.getElementById('resultName').textContent = card.name;
   document.getElementById('resultMeta').innerHTML =
     `${card.set?.name || 'Set inconnu'} · ${card.localId || '?'} · ${card.rarity || 'Rareté inconnue'}`;
+
+  fetchSeriesInfo(card);
 
   updateBadgesAndWarning();
 
@@ -976,6 +1004,9 @@ async function saveToStock() {
     stamp: document.getElementById('cardStamp').checked,
     graded: document.getElementById('cardGraded').checked,
     grade: document.getElementById('cardGraded').checked ? parseFloat(document.getElementById('cardGrade').value) : null,
+    series_id: lastSeries?.id || null,
+    series_name: lastSeries?.name || null,
+    series_logo: lastSeries?.logo || null,
     holo: !!(lastInfo && lastInfo.holo),
     price: parseFloat(document.getElementById('editPrice').value) || null,
     status: 'en_stock',

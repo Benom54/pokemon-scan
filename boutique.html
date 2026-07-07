@@ -71,6 +71,30 @@
     gap: 18px;
   }
 
+  .series-filters {
+    max-width: 1080px;
+    margin: 14px auto 0;
+    padding: 0 20px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .series-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .series-chip img { height: 16px; width: auto; object-fit: contain; }
+  .series-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
   .ticket {
     background: var(--card);
     border: 1px solid var(--line);
@@ -231,6 +255,8 @@
   </select>
 </div>
 
+<div id="seriesFilters" class="series-filters"></div>
+
 <div id="grid" class="grid"></div>
 <div id="loading" class="loading">Chargement des cartes...</div>
 <div id="empty" class="empty" style="display:none;">Aucune carte en stock pour le moment — reviens bientôt !</div>
@@ -311,14 +337,49 @@ function watermarkBlock() {
   return `<div class="watermark"><img src="${WATERMARK_LOGO}" alt=""></div>`;
 }
 
+let activeSeries = 'all';
+
+function renderSeriesFilters() {
+  const filtersEl = document.getElementById('seriesFilters');
+  const seen = new Map();
+  allCards.forEach(c => {
+    if (c.series_id && !seen.has(c.series_id)) {
+      seen.set(c.series_id, { name: c.series_name || c.series_id, logo: c.series_logo });
+    }
+  });
+
+  if (seen.size === 0) {
+    filtersEl.innerHTML = '';
+    return;
+  }
+
+  let html = `<div class="series-chip ${activeSeries === 'all' ? 'active' : ''}" data-series="all">Tous les blocs</div>`;
+  seen.forEach((info, id) => {
+    html += `<div class="series-chip ${activeSeries === id ? 'active' : ''}" data-series="${escapeHtml(id)}">
+      ${info.logo ? `<img src="${escapeHtml(info.logo)}" alt="">` : ''}${escapeHtml(info.name)}
+    </div>`;
+  });
+  filtersEl.innerHTML = html;
+
+  filtersEl.querySelectorAll('.series-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      activeSeries = chip.dataset.series;
+      render();
+    });
+  });
+}
+
 function render() {
+  renderSeriesFilters();
+
   const query = document.getElementById('search').value.trim().toLowerCase();
   const sort = document.getElementById('sort').value;
 
   let cards = allCards.filter(c =>
-    !query ||
-    (c.name || '').toLowerCase().includes(query) ||
-    (c.set_name || '').toLowerCase().includes(query)
+    (!query ||
+      (c.name || '').toLowerCase().includes(query) ||
+      (c.set_name || '').toLowerCase().includes(query)) &&
+    (activeSeries === 'all' || c.series_id === activeSeries)
   );
 
   if (sort === 'price_asc') cards.sort((a, b) => (a.price || 0) - (b.price || 0));
