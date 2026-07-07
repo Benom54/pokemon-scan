@@ -212,6 +212,16 @@
     <div id="status"></div>
   </div>
 
+  <div class="panel">
+    <label for="discountPercent">Remise globale sur la boutique (%)</label>
+    <div class="row" style="margin-bottom:0;">
+      <input type="number" id="discountPercent" min="0" max="100" step="1" value="0" style="max-width:120px;">
+      <button id="discountApplyBtn">Appliquer</button>
+    </div>
+    <p class="sub" style="margin:8px 0 0;">0 = pas de remise. Au-dessus de 0, chaque carte de la boutique affiche son prix barré avec le prix remisé à côté.</p>
+    <div id="discountStatus" style="font-size:13px; margin-top:8px; min-height:18px;"></div>
+  </div>
+
   <div class="row">
     <select id="filterStatus">
       <option value="all">Toutes les cartes</option>
@@ -365,6 +375,8 @@ async function loadCards() {
   loadingEl.textContent = 'Chargement...';
   listEl.innerHTML = '';
   emptyEl.style.display = 'none';
+
+  loadDiscount(url, key);
 
   try {
     const resp = await fetch(`${url}/rest/v1/cartes?select=*&order=created_at.desc`, {
@@ -680,6 +692,64 @@ document.getElementById('printModalOverlay').addEventListener('click', (e) => {
   }
 });
 document.getElementById('printModalGo').addEventListener('click', () => window.print());
+
+async function loadDiscount(url, key) {
+  try {
+    const resp = await fetch(`${url}/rest/v1/settings?key=eq.discount_percent&select=value`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` }
+    });
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    if (rows.length > 0) {
+      document.getElementById('discountPercent').value = rows[0].value;
+    }
+  } catch (err) {
+    console.warn('Chargement remise impossible :', err);
+  }
+}
+
+document.getElementById('discountApplyBtn').addEventListener('click', async () => {
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  const discountStatusEl = document.getElementById('discountStatus');
+  let percent = parseInt(document.getElementById('discountPercent').value, 10);
+
+  if (!url || !key) {
+    discountStatusEl.style.color = 'var(--danger)';
+    discountStatusEl.textContent = 'Renseigne l\'URL et la clé service_role Supabase.';
+    return;
+  }
+  if (isNaN(percent) || percent < 0 || percent > 100) {
+    discountStatusEl.style.color = 'var(--danger)';
+    discountStatusEl.textContent = 'La remise doit être un nombre entre 0 et 100.';
+    return;
+  }
+
+  discountStatusEl.style.color = '';
+  discountStatusEl.textContent = 'Enregistrement...';
+
+  try {
+    const resp = await fetch(`${url}/rest/v1/settings?on_conflict=key`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify([{ key: 'discount_percent', value: String(percent) }])
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+
+    discountStatusEl.style.color = 'var(--accent)';
+    discountStatusEl.textContent = percent > 0
+      ? `✓ Remise de ${percent}% active sur toute la boutique.`
+      : '✓ Remise désactivée.';
+  } catch (err) {
+    discountStatusEl.style.color = 'var(--danger)';
+    discountStatusEl.textContent = 'Erreur : ' + err.message;
+  }
+});
 
 document.getElementById('refreshBtn').addEventListener('click', loadCards);
 document.getElementById('filterStatus').addEventListener('change', () => { currentPage = 1; render(); });
