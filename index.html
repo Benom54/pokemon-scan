@@ -281,15 +281,30 @@
       </div>
       <p class="hint">L'IA propose un état d'après la photo (coins, bords, surface, centrage) — c'est une estimation visuelle, vérifie et corrige si besoin avant d'imprimer.</p>
 
-      <label class="mt" style="display:flex; align-items:center; gap:8px; font-weight:600;">
-        <input type="checkbox" id="cardEdition" style="width:16px; height:16px; margin:0;">
-        Carte 1ère édition
-      </label>
+      <div class="row mt">
+        <div>
+          <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+            <input type="checkbox" id="cardEdition" style="width:16px; height:16px; margin:0;">
+            Carte 1ère édition
+          </label>
 
-      <label class="mt" style="display:flex; align-items:center; gap:8px; font-weight:600;">
-        <input type="checkbox" id="cardStamp" style="width:16px; height:16px; margin:0;">
-        Carte tamponnée (Stamp)
-      </label>
+          <label class="mt" style="display:flex; align-items:center; gap:8px; font-weight:600;">
+            <input type="checkbox" id="cardStamp" style="width:16px; height:16px; margin:0;">
+            Carte tamponnée (Stamp)
+          </label>
+        </div>
+        <div>
+          <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+            <input type="checkbox" id="cardGraded" style="width:16px; height:16px; margin:0;">
+            Gradée
+          </label>
+
+          <div id="gradeWrap" class="mt" style="display:none;">
+            <label for="cardGrade" style="font-weight:600;">Note : <span id="cardGradeValue">10</span></label>
+            <input type="range" id="cardGrade" min="1" max="10" step="0.5" value="10" style="width:100%;">
+          </div>
+        </div>
+      </div>
 
       <label class="mt">Photos de la carte</label>
       <div class="row">
@@ -754,6 +769,8 @@ function updateBadgesAndWarning() {
   const info = lastInfo;
   const isFirstEdition = document.getElementById('cardEdition').checked;
   const isStamp = document.getElementById('cardStamp').checked;
+  const isGraded = document.getElementById('cardGraded').checked;
+  const grade = document.getElementById('cardGrade').value;
   const condition = document.getElementById('cardCondition').value;
 
   const badgesEl = document.getElementById('resultBadges');
@@ -763,6 +780,9 @@ function updateBadgesAndWarning() {
   }
   if (isStamp) {
     badges += `<span class="badge">Stamp</span>`;
+  }
+  if (isGraded) {
+    badges += `<span class="badge">Gradée ${grade}</span>`;
   }
   if (info && info.holo) {
     badges += `<span class="badge">Holo</span>`;
@@ -778,6 +798,9 @@ function updateBadgesAndWarning() {
   if (isStamp) {
     warnMsgs.push(`Carte tamponnée (Stamp) : TCGdex ne référence pas de prix spécifique pour cette variante, ajuste le prix manuellement si elle vaut plus que la version standard.`);
   }
+  if (isGraded) {
+    warnMsgs.push(`Carte gradée ${grade} : le prix ci-dessous ne tient pas compte de la gradation, généralement plus valorisée qu'une carte non gradée. Ajuste le prix manuellement.`);
+  }
   warnMsgs.push(`Le prix ne tient pas compte de l'état ("${condition}") : ajuste-le si la carte n'est pas en Near Mint.`);
   warnEl.innerHTML = warnMsgs.join('<br>');
   warnEl.style.display = 'block';
@@ -785,6 +808,20 @@ function updateBadgesAndWarning() {
 
 document.getElementById('cardEdition').addEventListener('change', updateBadgesAndWarning);
 document.getElementById('cardStamp').addEventListener('change', updateBadgesAndWarning);
+
+const cardGradedCheck = document.getElementById('cardGraded');
+const gradeWrap = document.getElementById('gradeWrap');
+const cardGradeInput = document.getElementById('cardGrade');
+const cardGradeValue = document.getElementById('cardGradeValue');
+
+cardGradedCheck.addEventListener('change', () => {
+  gradeWrap.style.display = cardGradedCheck.checked ? 'block' : 'none';
+  updateBadgesAndWarning();
+});
+cardGradeInput.addEventListener('input', () => {
+  cardGradeValue.textContent = cardGradeInput.value;
+  updateBadgesAndWarning();
+});
 document.getElementById('cardCondition').addEventListener('change', updateBadgesAndWarning);
 
 identifyBtn.addEventListener('click', identify);
@@ -937,6 +974,8 @@ async function saveToStock() {
     condition: document.getElementById('cardCondition').value,
     first_edition: document.getElementById('cardEdition').checked,
     stamp: document.getElementById('cardStamp').checked,
+    graded: document.getElementById('cardGraded').checked,
+    grade: document.getElementById('cardGraded').checked ? parseFloat(document.getElementById('cardGrade').value) : null,
     holo: !!(lastInfo && lastInfo.holo),
     price: parseFloat(document.getElementById('editPrice').value) || null,
     status: 'en_stock',
@@ -994,6 +1033,10 @@ document.getElementById('nextCardBtn').addEventListener('click', () => {
   // Coches et champs de la vue 1
   document.getElementById('cardEdition').checked = false;
   document.getElementById('cardStamp').checked = false;
+  document.getElementById('cardGraded').checked = false;
+  document.getElementById('cardGrade').value = '10';
+  document.getElementById('cardGradeValue').textContent = '10';
+  document.getElementById('gradeWrap').style.display = 'none';
   document.getElementById('cardCondition').value = 'Near Mint';
 
   // Résultat et statut
