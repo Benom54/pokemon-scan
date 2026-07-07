@@ -122,6 +122,12 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// Filet de sécurité : TCGdex ne renvoie jamais d'extension sur ses URLs d'images
+function withExt(url) {
+  if (!url) return url;
+  return /\.(png|webp|jpe?g)$/i.test(url) ? url : `${url}.png`;
+}
+
 function getParam(name) {
   return new URLSearchParams(window.location.search).get(name);
 }
@@ -191,7 +197,7 @@ function renderCard(c) {
       <div class="meta">${escapeHtml(numberSet)}</div>
       ${c.series_name ? `
         <div class="series-row">
-          ${c.series_logo ? `<img src="${escapeHtml(c.series_logo)}" alt="">` : ''}
+          ${c.series_logo ? `<img src="${escapeHtml(withExt(c.series_logo))}" alt="">` : ''}
           <span>${escapeHtml(c.series_name)}</span>
         </div>
       ` : ''}

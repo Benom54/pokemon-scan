@@ -729,7 +729,7 @@ async function fetchSeriesInfo(card) {
     lastSeries = {
       id: setData.serie.id,
       name: setData.serie.name || null,
-      logo: serieData?.logo || null
+      logo: serieData?.logo ? `${serieData.logo}.png` : null
     };
   } catch (err) {
     console.warn('Récupération de la série impossible :', err);

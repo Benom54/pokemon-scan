@@ -373,7 +373,7 @@ function renderSeriesFilters() {
   let html = `<div class="series-chip ${activeSeries === 'all' ? 'active' : ''}" data-series="all">Tous les blocs</div>`;
   seen.forEach((info, id) => {
     html += `<div class="series-chip ${activeSeries === id ? 'active' : ''}" data-series="${escapeHtml(id)}">
-      ${info.logo ? `<img src="${escapeHtml(info.logo)}" alt="">` : ''}${escapeHtml(info.name)}
+      ${info.logo ? `<img src="${escapeHtml(withExt(info.logo))}" alt="">` : ''}${escapeHtml(info.name)}
     </div>`;
   });
   filtersEl.innerHTML = html;
@@ -505,6 +505,13 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str || '';
   return div.innerHTML;
+}
+
+// Filet de sécurité pour les cartes scannées avant ce correctif : TCGdex ne renvoie jamais
+// d'extension sur ses URLs d'images, il faut toujours l'ajouter soi-même.
+function withExt(url) {
+  if (!url) return url;
+  return /\.(png|webp|jpe?g)$/i.test(url) ? url : `${url}.png`;
 }
 
 document.getElementById('search').addEventListener('input', () => { currentPage = 1; render(); });
