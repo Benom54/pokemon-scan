@@ -968,7 +968,7 @@ async function saveToStock() {
     tcgdex_id: lastCard.id,
     name: lastCard.name,
     set_name: lastCard.set?.name || null,
-    card_number: lastCard.localId ? String(lastCard.localId) : null,
+    card_number: lastCard.localId ? (lastCard.set?.cardCount?.total ? `${lastCard.localId}/${lastCard.set.cardCount.total}` : String(lastCard.localId)) : null,
     rarity: lastCard.rarity || null,
     lang: document.getElementById('cardLang').value,
     condition: document.getElementById('cardCondition').value,
