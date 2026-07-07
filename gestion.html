@@ -244,6 +244,11 @@
     <h2 id="editModalTitle">Modifier la carte</h2>
 
     <div class="field-edit">
+      <label for="editSlug">Slug (URL de la page produit)</label>
+      <input type="text" id="editSlug">
+    </div>
+
+    <div class="field-edit">
       <label for="editPrice">Prix (€)</label>
       <input type="text" id="editPrice">
     </div>
@@ -503,6 +508,7 @@ function openEditModal(id) {
   if (!card) return;
   pendingEditId = id;
   document.getElementById('editModalTitle').textContent = `Modifier « ${card.name} »`;
+  document.getElementById('editSlug').value = card.slug || '';
   document.getElementById('editPrice').value = card.price != null ? card.price : '';
   document.getElementById('editCondition').value = card.condition || 'Near Mint';
   document.getElementById('editStatus').value = card.status || 'en_stock';
@@ -527,6 +533,7 @@ document.getElementById('editModalSave').addEventListener('click', async () => {
   const msgEl = document.getElementById('editStatusMsg');
 
   const updates = {
+    slug: slugify(document.getElementById('editSlug').value) || null,
     price: parseFloat(document.getElementById('editPrice').value) || null,
     condition: document.getElementById('editCondition').value,
     status: document.getElementById('editStatus').value
@@ -561,6 +568,15 @@ document.getElementById('editModalSave').addEventListener('click', async () => {
 });
 
 function mmToPx(mm) { return mm * (96 / 25.4); }
+
+function slugify(str) {
+  return (str || '')
+    .toString()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
 function fitText(el, maxWidth, maxHeight, startPx, minPx) {
   let fs = startPx;
@@ -623,9 +639,10 @@ function renderPrintLabel(card) {
   qrDiv.style.width = qrSizePx + 'px';
   qrDiv.style.height = qrSizePx + 'px';
 
-  const cond = encodeURIComponent(card.condition || '');
-  const ed = card.first_edition ? '1ere' : 'standard';
-  const qrUrl = `https://tonsite.com/carte/${card.tcgdex_id || card.id}?etat=${cond}&edition=${ed}`;
+  const basePath = window.location.href.replace(/gestion\.html(\?.*)?$/, '').replace(/\/$/, '');
+  const qrUrl = card.slug
+    ? `${basePath}/carte.html?slug=${encodeURIComponent(card.slug)}`
+    : `${basePath}/carte.html?id=${encodeURIComponent(card.id)}`;
   new QRCode(qrDiv, { text: qrUrl, width: qrSizePx, height: qrSizePx, correctLevel: QRCode.CorrectLevel.L });
 
   requestAnimationFrame(() => {

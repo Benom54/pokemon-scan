@@ -477,6 +477,7 @@ let backImage = null, backMediaType = 'image/jpeg';
 let lastCard = null; // dernière fiche TCGdex trouvée
 let lastInfo = null; // dernière lecture IA (holo, etc.)
 let lastSeries = null; // bloc/série de la dernière carte (id, nom, logo)
+let lastSlug = null; // slug unique pour la page produit de cette carte
 
 dropZoneFront.addEventListener('click', () => fileInputFront.click());
 dropZoneBack.addEventListener('click', () => fileInputBack.click());
@@ -740,6 +741,10 @@ function showResult(card, info) {
   lastInfo = info;
   lastSeries = null; // remis à zéro, rempli en tâche de fond par fetchSeriesInfo()
 
+  // Slug unique pour la page produit, généré une fois pour toute la vie de cette identification
+  const uniqueSuffix = Math.random().toString(36).slice(2, 6);
+  lastSlug = [card.name, card.set?.name, card.localId].filter(Boolean).map(slugify).join('-') + '-' + uniqueSuffix;
+
   document.getElementById('resultImg').src = card.image ? `${card.image}/high.png` : '';
   document.getElementById('resultName').textContent = card.name;
   document.getElementById('resultMeta').innerHTML =
@@ -874,11 +879,11 @@ function goToLabel() {
   document.getElementById('labelStampCheck').checked = document.getElementById('cardStamp').checked;
   document.getElementById('labelConditionSelect').value = document.getElementById('cardCondition').value;
 
-  if (lastCard) {
-    // Référence structurée pour un futur site (à adapter à ton domaine une fois le site en ligne)
-    const cond = encodeURIComponent(document.getElementById('cardCondition').value);
-    const ed = document.getElementById('cardEdition').checked ? '1ere' : 'standard';
-    document.getElementById('url').value = `https://tonsite.com/carte/${lastCard.id}?etat=${cond}&edition=${ed}`;
+  if (lastCard && lastSlug) {
+    // URL réelle de la page produit, déduite automatiquement de l'endroit où ce fichier est hébergé
+    // (fonctionne aussi bien en local que sur GitHub Pages ou ton propre domaine)
+    const basePath = window.location.href.replace(/index\.html(\?.*)?$/, '').replace(/\/$/, '');
+    document.getElementById('url').value = `${basePath}/carte.html?slug=${encodeURIComponent(lastSlug)}`;
   }
 
   showView('label');
@@ -1028,6 +1033,7 @@ async function saveToStock(force) {
 
   const payload = {
     tcgdex_id: lastCard.id,
+    slug: lastSlug,
     name: lastCard.name,
     set_name: lastCard.set?.name || null,
     card_number: lastCard.localId ? (lastCard.set?.cardCount?.total ? `${lastCard.localId}/${lastCard.set.cardCount.total}` : String(lastCard.localId)) : null,

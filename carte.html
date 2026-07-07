@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carte Pokémon</title>
+<style>
+  :root {
+    --ink: #1c1b19;
+    --paper: #faf9f6;
+    --card: #ffffff;
+    --line: #dcd9d1;
+    --accent: #2f5d4f;
+    --accent-ink: #eaf2ef;
+    --gold: #9c7a2e;
+    --gold-bg: #fbf3df;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+
+  a.back-link {
+    display: inline-block;
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: #6b6a64;
+    text-decoration: none;
+  }
+  a.back-link:hover { color: var(--accent); }
+
+  .card-panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 24px;
+  }
+
+  .photos {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .photos > div { flex: 1; text-align: center; }
+  .photos img {
+    width: 100%;
+    max-height: 380px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+  }
+  .photo-label { font-size: 12px; color: #8b897f; margin-top: 6px; }
+
+  .badges { margin-bottom: 10px; }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--gold-bg);
+    color: var(--gold);
+    margin: 0 6px 6px 0;
+    letter-spacing: 0.02em;
+  }
+  .badge.cond { background: var(--accent-ink); color: var(--accent); }
+
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .meta { color: #6b6a64; font-size: 14px; margin-bottom: 4px; }
+  .series-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .series-row img { height: 18px; width: auto; }
+  .series-row span { font-size: 13px; color: #8b897f; }
+
+  .price { font-size: 32px; font-weight: 800; margin: 12px 0 20px; }
+
+  .cta {
+    display: block;
+    text-align: center;
+    padding: 14px;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .cta:hover { opacity: 0.92; }
+
+  .state, .loading {
+    text-align: center;
+    color: #6b6a64;
+    font-size: 15px;
+    padding: 60px 20px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="boutique.html" class="back-link">← Retour à la boutique</a>
+  <div id="content">
+    <div class="loading">Chargement de la carte...</div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Configuration — clé "anon public" uniquement (sûre à exposer,
+// elle ne peut lire que les cartes en_stock grâce aux policies SQL).
+// ============================================================
+const SUPABASE_URL = 'https://izfusafzbekuezqitzsp.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_NYWtmqeLH0CMygyhM2R7Yw_ACYqyBCe';
+const CONTACT_EMAIL = 'ton-email@exemple.com';
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+function getParam(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+async function loadCard() {
+  const contentEl = document.getElementById('content');
+  const slug = getParam('slug');
+  const id = getParam('id');
+
+  if (!slug && !id) {
+    contentEl.innerHTML = '<div class="state">Aucune carte spécifiée.</div>';
+    return;
+  }
+
+  const filter = slug ? `slug=eq.${encodeURIComponent(slug)}` : `id=eq.${encodeURIComponent(id)}`;
+
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/cartes?${filter}&select=*&limit=1`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const rows = await resp.json();
+
+    if (rows.length === 0) {
+      contentEl.innerHTML = '<div class="state">Cette carte n\'est plus disponible — elle a peut-être déjà été vendue, ou le lien est incorrect.</div>';
+      return;
+    }
+
+    renderCard(rows[0]);
+  } catch (err) {
+    contentEl.innerHTML = `<div class="state">Erreur de chargement : ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderCard(c) {
+  const contentEl = document.getElementById('content');
+  const priceText = c.price != null ? `${Number(c.price).toFixed(2)} €` : 'Prix sur demande';
+  const numberSet = [c.card_number, c.set_name].filter(Boolean).join(' · ');
+
+  const badges = [
+    c.first_edition ? '<span class="badge">1ère édition</span>' : '',
+    c.stamp ? '<span class="badge">Stamp</span>' : '',
+    c.holo ? '<span class="badge">Holo</span>' : '',
+    (c.graded && c.grade != null) ? `<span class="badge">Gradée ${escapeHtml(String(c.grade))}</span>` : '',
+    c.condition ? `<span class="badge cond">${escapeHtml(c.condition)}</span>` : ''
+  ].join('');
+
+  const photos = [];
+  if (c.photo_url) {
+    photos.push(`<div><img src="${escapeHtml(c.photo_url)}" alt="Recto"><div class="photo-label">Recto</div></div>`);
+  }
+  if (c.photo_back_url) {
+    photos.push(`<div><img src="${escapeHtml(c.photo_back_url)}" alt="Verso"><div class="photo-label">Verso</div></div>`);
+  }
+  if (photos.length === 0 && c.image_url) {
+    photos.push(`<div><img src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.name)}"><div class="photo-label">Illustration officielle</div></div>`);
+  }
+
+  const subject = encodeURIComponent(`Réservation carte : ${c.name}`);
+  const body = encodeURIComponent(`Bonjour, je souhaite réserver la carte "${c.name}" (${numberSet}) à ${priceText}.`);
+
+  contentEl.innerHTML = `
+    <div class="card-panel">
+      <div class="photos">${photos.join('')}</div>
+      <div class="badges">${badges}</div>
+      <h1>${escapeHtml(c.name)}</h1>
+      <div class="meta">${escapeHtml(numberSet)}</div>
+      ${c.series_name ? `
+        <div class="series-row">
+          ${c.series_logo ? `<img src="${escapeHtml(c.series_logo)}" alt="">` : ''}
+          <span>${escapeHtml(c.series_name)}</span>
+        </div>
+      ` : ''}
+      <div class="price">${priceText}</div>
+      <a class="cta" href="mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}">Réserver cette carte</a>
+    </div>
+  `;
+}
+
+loadCard();
+</script>
+</body>
+</html>
