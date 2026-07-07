@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestion du stock</title>
+<style>
+  :root {
+    --ink: #1c1b19;
+    --paper: #faf9f6;
+    --card: #ffffff;
+    --line: #dcd9d1;
+    --accent: #2f5d4f;
+    --accent-ink: #eaf2ef;
+    --danger: #a3312d;
+    --danger-bg: #fbeceb;
+    --gold: #9c7a2e;
+    --gold-bg: #fbf3df;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+  .sub { color: #6b6a64; font-size: 14px; margin: 0 0 24px; }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+  label.mt { margin-top: 14px; }
+  input[type="text"], input[type="password"], select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .row select { width: auto; min-width: 160px; }
+  .row input[type="text"] { flex: 1; min-width: 200px; }
+
+  button {
+    padding: 9px 16px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.danger { background: var(--danger); }
+  button.ghost { background: var(--accent-ink); color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  #status { font-size: 13px; margin-top: 8px; min-height: 18px; }
+  #status.error { color: var(--danger); }
+  #status.ok { color: var(--accent); }
+
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .item {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .item img {
+    width: 52px; height: 72px;
+    object-fit: contain;
+    background: var(--paper);
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-weight: 700; font-size: 14px; }
+  .item-meta { font-size: 12px; color: #8b897f; }
+  .item-price { font-weight: 700; font-size: 14px; margin-top: 2px; }
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    margin-left: 6px;
+    letter-spacing: 0.02em;
+  }
+  .badge.en_stock { background: var(--accent-ink); color: var(--accent); }
+  .badge.vendue { background: var(--gold-bg); color: var(--gold); }
+
+  .empty, .loading {
+    text-align: center;
+    color: #8b897f;
+    font-size: 14px;
+    padding: 40px 0;
+  }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(28,27,25,0.55);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border-radius: 14px;
+    max-width: 420px;
+    width: 100%;
+    padding: 24px;
+  }
+  .modal h2 { font-size: 17px; margin: 0 0 8px; }
+  .modal p { font-size: 14px; color: #6b6a64; margin: 0 0 20px; line-height: 1.5; }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions button { flex: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Gestion du stock</h1>
+  <p class="sub">Liste complète de tes cartes (en stock et vendues), avec suppression définitive.</p>
+
+  <div class="panel">
+    <label for="supabaseUrl">URL du projet Supabase</label>
+    <input type="text" id="supabaseUrl" placeholder="https://xxxxx.supabase.co">
+    <label for="supabaseKey" class="mt">Clé service_role Supabase</label>
+    <input type="password" id="supabaseKey" placeholder="eyJ...">
+    <p class="sub" style="margin:8px 0 0;">Mémorisées localement dans ce navigateur (partagées avec l'outil de scan si utilisé sur cet appareil).</p>
+    <div id="status"></div>
+  </div>
+
+  <div class="row">
+    <select id="filterStatus">
+      <option value="all">Toutes les cartes</option>
+      <option value="en_stock">En stock uniquement</option>
+      <option value="vendue">Vendues uniquement</option>
+    </select>
+    <input type="text" id="search" placeholder="Chercher par nom...">
+    <button class="ghost" id="refreshBtn">Actualiser</button>
+  </div>
+
+  <div id="loading" class="loading">Charge tes identifiants Supabase ci-dessus pour voir le stock.</div>
+  <div id="empty" class="empty" style="display:none;">Aucune carte ne correspond.</div>
+  <div id="list" class="list"></div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>Supprimer définitivement ?</h2>
+    <p id="modalText"></p>
+    <div class="modal-actions">
+      <button class="ghost" id="modalCancel">Annuler</button>
+      <button class="danger" id="modalConfirm">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const urlInput = document.getElementById('supabaseUrl');
+const keyInput = document.getElementById('supabaseKey');
+const statusEl = document.getElementById('status');
+const listEl = document.getElementById('list');
+const loadingEl = document.getElementById('loading');
+const emptyEl = document.getElementById('empty');
+
+let allCards = [];
+let pendingDeleteId = null;
+
+try {
+  const savedUrl = localStorage.getItem('pokemon_tool_supabase_url');
+  const savedKey = localStorage.getItem('pokemon_tool_supabase_key');
+  if (savedUrl) urlInput.value = savedUrl;
+  if (savedKey) keyInput.value = savedKey;
+} catch (e) {}
+
+urlInput.addEventListener('input', () => {
+  try { localStorage.setItem('pokemon_tool_supabase_url', urlInput.value.trim()); } catch (e) {}
+});
+keyInput.addEventListener('input', () => {
+  try { localStorage.setItem('pokemon_tool_supabase_key', keyInput.value.trim()); } catch (e) {}
+});
+
+function setStatus(text, kind) {
+  statusEl.textContent = text;
+  statusEl.className = kind || '';
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+async function loadCards() {
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  if (!url || !key) {
+    setStatus('Renseigne l\'URL et la clé service_role Supabase.', 'error');
+    return;
+  }
+  setStatus('');
+  loadingEl.style.display = 'block';
+  loadingEl.textContent = 'Chargement...';
+  listEl.innerHTML = '';
+  emptyEl.style.display = 'none';
+
+  try {
+    const resp = await fetch(`${url}/rest/v1/cartes?select=*&order=created_at.desc`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` }
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    allCards = await resp.json();
+    loadingEl.style.display = 'none';
+    render();
+  } catch (err) {
+    loadingEl.textContent = 'Erreur de chargement : ' + err.message;
+  }
+}
+
+function render() {
+  const filterStatus = document.getElementById('filterStatus').value;
+  const query = document.getElementById('search').value.trim().toLowerCase();
+
+  let cards = allCards.filter(c => {
+    if (filterStatus !== 'all' && c.status !== filterStatus) return false;
+    if (query && !(c.name || '').toLowerCase().includes(query)) return false;
+    return true;
+  });
+
+  if (cards.length === 0) {
+    listEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  listEl.innerHTML = cards.map(c => {
+    const priceText = c.price != null ? `${Number(c.price).toFixed(2)} €` : 'Prix non défini';
+    const numberSet = [c.card_number, c.set_name].filter(Boolean).join(' · ');
+    const statusLabel = c.status === 'vendue' ? 'Vendue' : 'En stock';
+    return `
+      <div class="item">
+        ${c.image_url ? `<img src="${escapeHtml(c.image_url)}" alt="">` : '<div style="width:52px;height:72px;flex-shrink:0;"></div>'}
+        <div class="item-info">
+          <div class="item-name">${escapeHtml(c.name)}<span class="badge ${c.status}">${statusLabel}</span></div>
+          <div class="item-meta">${escapeHtml(numberSet)}</div>
+          <div class="item-price">${priceText}</div>
+        </div>
+        <button class="danger" data-id="${c.id}" data-name="${escapeHtml(c.name)}">Supprimer</button>
+      </div>
+    `;
+  }).join('');
+
+  listEl.querySelectorAll('button[data-id]').forEach(btn => {
+    btn.addEventListener('click', () => openDeleteModal(btn.dataset.id, btn.dataset.name));
+  });
+}
+
+function openDeleteModal(id, name) {
+  pendingDeleteId = id;
+  document.getElementById('modalText').textContent =
+    `"${name}" sera définitivement supprimée de ta base. Cette action est irréversible (les photos déjà hébergées ne sont pas effacées automatiquement).`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+document.getElementById('modalCancel').addEventListener('click', () => {
+  pendingDeleteId = null;
+  document.getElementById('modalOverlay').classList.remove('open');
+});
+
+document.getElementById('modalConfirm').addEventListener('click', async () => {
+  if (!pendingDeleteId) return;
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  const id = pendingDeleteId;
+
+  document.getElementById('modalOverlay').classList.remove('open');
+  setStatus('Suppression en cours...', '');
+
+  try {
+    const resp = await fetch(`${url}/rest/v1/cartes?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: 'return=minimal'
+      }
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+
+    allCards = allCards.filter(c => c.id !== id);
+    render();
+    setStatus('✓ Carte supprimée définitivement.', 'ok');
+  } catch (err) {
+    setStatus('Erreur lors de la suppression : ' + err.message, 'error');
+  }
+  pendingDeleteId = null;
+});
+
+document.getElementById('modalOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'modalOverlay') {
+    pendingDeleteId = null;
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+});
+
+document.getElementById('refreshBtn').addEventListener('click', loadCards);
+document.getElementById('filterStatus').addEventListener('change', render);
+document.getElementById('search').addEventListener('input', render);
+
+// Charge automatiquement si les identifiants sont déjà mémorisés
+if (urlInput.value && keyInput.value) {
+  loadCards();
+} else {
+  loadingEl.textContent = 'Charge tes identifiants Supabase ci-dessus pour voir le stock.';
+}
+</script>
+</body>
+</html>
