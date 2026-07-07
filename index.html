@@ -133,6 +133,21 @@
     margin-top: 8px;
     line-height: 1.5;
   }
+  .manual-result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-top: 8px;
+    cursor: pointer;
+  }
+  .manual-result:hover { border-color: var(--accent); background: var(--accent-ink); }
+  .manual-result img { width: 34px; height: 47px; object-fit: contain; border-radius: 4px; flex-shrink: 0; }
+  .manual-result .mr-name { font-size: 13px; font-weight: 600; }
+  .manual-result .mr-meta { font-size: 12px; color: #8b897f; }
+  .manual-search-msg { font-size: 13px; color: #6b6a64; margin-top: 8px; }
 
   .field-edit { margin-top: 14px; }
   .field-edit label { font-weight: 600; font-size: 12px; color: #6b6a64; }
@@ -291,6 +306,13 @@
       </div>
       <button id="identifyBtn" disabled>Identifier la carte</button>
       <div id="status"></div>
+    </div>
+
+    <div class="panel">
+      <label for="manualSearchName">Recherche manuelle (si l'IA ou TCGdex se trompe)</label>
+      <input type="text" id="manualSearchName" placeholder="Nom du Pokémon, ex: Forgelina">
+      <button class="secondary" id="manualSearchBtn">Chercher sur TCGdex</button>
+      <div id="manualSearchResults"></div>
     </div>
 
     <div class="panel result" id="resultPanel">
@@ -582,7 +604,8 @@ async function lookupCard(info) {
   }
 
   if (cards.length === 0) {
-    setStatus(`L'IA a lu "${info.name}" (${info.set_hint || 'set inconnu'} ${info.number || ''}) mais aucune correspondance trouvée dans TCGdex. Vérifie la photo, ou que la langue sélectionnée est correcte.`, true);
+    setStatus(`L'IA a lu "${info.name}" (${info.set_hint || 'set inconnu'} ${info.number || ''}) mais aucune correspondance trouvée dans TCGdex. Vérifie la photo, utilise la recherche manuelle ci-dessous, ou vérifie la langue sélectionnée.`, true);
+    document.getElementById('manualSearchName').value = info.name || '';
     return;
   }
 
@@ -602,6 +625,57 @@ async function lookupCard(info) {
 
   showResult(full, info);
 }
+
+function escapeHtmlLite(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+async function runManualSearch() {
+  const query = document.getElementById('manualSearchName').value.trim();
+  const resultsEl = document.getElementById('manualSearchResults');
+  if (!query) { resultsEl.innerHTML = ''; return; }
+
+  const lang = LANG_CODES[document.getElementById('cardLang').value] || 'fr';
+  resultsEl.innerHTML = '<div class="manual-search-msg">Recherche...</div>';
+
+  const results = await fetchTcgdex(lang, `name=${encodeURIComponent(query)}`);
+  if (!results.length) {
+    resultsEl.innerHTML = '<div class="manual-search-msg">Aucun résultat pour ce nom dans cette langue.</div>';
+    return;
+  }
+
+  resultsEl.innerHTML = results.slice(0, 25).map(c => `
+    <div class="manual-result" data-id="${escapeHtmlLite(c.id)}">
+      <img src="${c.image ? escapeHtmlLite(c.image) + '/low.png' : ''}" alt="">
+      <div>
+        <div class="mr-name">${escapeHtmlLite(c.name)}</div>
+        <div class="mr-meta">${escapeHtmlLite(c.set?.name || 'Set inconnu')} · ${escapeHtmlLite(String(c.localId || '?'))}</div>
+      </div>
+    </div>
+  `).join('');
+
+  resultsEl.querySelectorAll('.manual-result').forEach(el => {
+    el.addEventListener('click', async () => {
+      resultsEl.innerHTML = '<div class="manual-search-msg">Chargement de la fiche...</div>';
+      try {
+        const fullResp = await fetch(`https://api.tcgdex.net/v2/${lang}/cards/${el.dataset.id}`);
+        const full = await fullResp.json();
+        showResult(full, lastInfo || {});
+        resultsEl.innerHTML = '';
+        setStatus('Carte trouvée via la recherche manuelle.', false);
+      } catch (err) {
+        resultsEl.innerHTML = `<div class="manual-search-msg">Erreur de chargement : ${err.message}</div>`;
+      }
+    });
+  });
+}
+
+document.getElementById('manualSearchBtn').addEventListener('click', runManualSearch);
+document.getElementById('manualSearchName').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runManualSearch();
+});
 
 function showResult(card, info) {
   lastCard = card;
@@ -850,6 +924,8 @@ document.getElementById('nextCardBtn').addEventListener('click', () => {
   resultPanel.style.display = 'none';
   setStatus('', false);
   document.getElementById('stockStatus').textContent = '';
+  document.getElementById('manualSearchName').value = '';
+  document.getElementById('manualSearchResults').innerHTML = '';
   lastCard = null;
   lastInfo = null;
 
