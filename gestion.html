@@ -99,6 +99,22 @@
   .badge.en_stock { background: var(--accent-ink); color: var(--accent); }
   .badge.vendue { background: var(--gold-bg); color: var(--gold); }
 
+  .item-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .item-actions button { white-space: nowrap; }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .page-info { font-size: 13px; color: #6b6a64; }
+
+  .field-edit { margin-top: 14px; }
+  .field-edit label { font-weight: 600; font-size: 12px; color: #6b6a64; }
+
   .empty, .loading {
     text-align: center;
     color: #8b897f;
@@ -157,6 +173,7 @@
   <div id="loading" class="loading">Charge tes identifiants Supabase ci-dessus pour voir le stock.</div>
   <div id="empty" class="empty" style="display:none;">Aucune carte ne correspond.</div>
   <div id="list" class="list"></div>
+  <div id="pagination" class="pagination"></div>
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
@@ -166,6 +183,40 @@
     <div class="modal-actions">
       <button class="ghost" id="modalCancel">Annuler</button>
       <button class="danger" id="modalConfirm">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModalOverlay">
+  <div class="modal">
+    <h2 id="editModalTitle">Modifier la carte</h2>
+
+    <div class="field-edit">
+      <label for="editPrice">Prix (€)</label>
+      <input type="text" id="editPrice">
+    </div>
+    <div class="field-edit">
+      <label for="editCondition">État</label>
+      <select id="editCondition">
+        <option value="Near Mint">Near Mint</option>
+        <option value="Excellent">Excellent</option>
+        <option value="Good">Good</option>
+        <option value="Played">Played</option>
+        <option value="Poor">Poor</option>
+      </select>
+    </div>
+    <div class="field-edit">
+      <label for="editStatus">Statut</label>
+      <select id="editStatus">
+        <option value="en_stock">En stock</option>
+        <option value="vendue">Vendue</option>
+      </select>
+    </div>
+    <div id="editStatusMsg" style="font-size:13px; margin-top:10px; min-height:18px;"></div>
+
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="ghost" id="editModalCancel">Annuler</button>
+      <button id="editModalSave">Enregistrer</button>
     </div>
   </div>
 </div>
@@ -232,6 +283,9 @@ async function loadCards() {
   }
 }
 
+const PAGE_SIZE = 10;
+let currentPage = 1;
+
 function render() {
   const filterStatus = document.getElementById('filterStatus').value;
   const query = document.getElementById('search').value.trim().toLowerCase();
@@ -245,11 +299,16 @@ function render() {
   if (cards.length === 0) {
     listEl.innerHTML = '';
     emptyEl.style.display = 'block';
+    document.getElementById('pagination').innerHTML = '';
     return;
   }
   emptyEl.style.display = 'none';
 
-  listEl.innerHTML = cards.map(c => {
+  const totalPages = Math.max(1, Math.ceil(cards.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const pageCards = cards.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  listEl.innerHTML = pageCards.map(c => {
     const priceText = c.price != null ? `${Number(c.price).toFixed(2)} €` : 'Prix non défini';
     const numberSet = [c.card_number, c.set_name].filter(Boolean).join(' · ');
     const statusLabel = c.status === 'vendue' ? 'Vendue' : 'En stock';
@@ -261,7 +320,10 @@ function render() {
           <div class="item-meta">${escapeHtml(numberSet)}</div>
           <div class="item-price">${priceText}</div>
         </div>
-        <button class="danger" data-id="${c.id}" data-name="${escapeHtml(c.name)}">Supprimer</button>
+        <div class="item-actions">
+          <button class="ghost" data-edit-id="${c.id}">Modifier</button>
+          <button class="danger" data-id="${c.id}" data-name="${escapeHtml(c.name)}">Supprimer</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -269,6 +331,26 @@ function render() {
   listEl.querySelectorAll('button[data-id]').forEach(btn => {
     btn.addEventListener('click', () => openDeleteModal(btn.dataset.id, btn.dataset.name));
   });
+  listEl.querySelectorAll('button[data-edit-id]').forEach(btn => {
+    btn.addEventListener('click', () => openEditModal(btn.dataset.editId));
+  });
+
+  renderPagination(totalPages, cards.length);
+}
+
+function renderPagination(totalPages, totalCount) {
+  const paginationEl = document.getElementById('pagination');
+  if (totalPages <= 1) {
+    paginationEl.innerHTML = '';
+    return;
+  }
+  paginationEl.innerHTML = `
+    <button class="ghost" id="pagePrev" ${currentPage <= 1 ? 'disabled' : ''}>← Précédent</button>
+    <span class="page-info">Page ${currentPage} / ${totalPages} (${totalCount} carte${totalCount > 1 ? 's' : ''})</span>
+    <button class="ghost" id="pageNext" ${currentPage >= totalPages ? 'disabled' : ''}>Suivant →</button>
+  `;
+  document.getElementById('pagePrev')?.addEventListener('click', () => { currentPage--; render(); });
+  document.getElementById('pageNext')?.addEventListener('click', () => { currentPage++; render(); });
 }
 
 function openDeleteModal(id, name) {
@@ -319,9 +401,73 @@ document.getElementById('modalOverlay').addEventListener('click', (e) => {
   }
 });
 
+let pendingEditId = null;
+
+function openEditModal(id) {
+  const card = allCards.find(c => c.id === id);
+  if (!card) return;
+  pendingEditId = id;
+  document.getElementById('editModalTitle').textContent = `Modifier « ${card.name} »`;
+  document.getElementById('editPrice').value = card.price != null ? card.price : '';
+  document.getElementById('editCondition').value = card.condition || 'Near Mint';
+  document.getElementById('editStatus').value = card.status || 'en_stock';
+  document.getElementById('editStatusMsg').textContent = '';
+  document.getElementById('editModalOverlay').classList.add('open');
+}
+
+function closeEditModal() {
+  pendingEditId = null;
+  document.getElementById('editModalOverlay').classList.remove('open');
+}
+
+document.getElementById('editModalCancel').addEventListener('click', closeEditModal);
+document.getElementById('editModalOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'editModalOverlay') closeEditModal();
+});
+
+document.getElementById('editModalSave').addEventListener('click', async () => {
+  if (!pendingEditId) return;
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  const msgEl = document.getElementById('editStatusMsg');
+
+  const updates = {
+    price: parseFloat(document.getElementById('editPrice').value) || null,
+    condition: document.getElementById('editCondition').value,
+    status: document.getElementById('editStatus').value
+  };
+
+  msgEl.style.color = '';
+  msgEl.textContent = 'Enregistrement...';
+
+  try {
+    const resp = await fetch(`${url}/rest/v1/cartes?id=eq.${pendingEditId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify(updates)
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+
+    const idx = allCards.findIndex(c => c.id === pendingEditId);
+    if (idx !== -1) allCards[idx] = { ...allCards[idx], ...updates };
+
+    closeEditModal();
+    render();
+    setStatus('✓ Carte mise à jour.', 'ok');
+  } catch (err) {
+    msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Erreur : ' + err.message;
+  }
+});
+
 document.getElementById('refreshBtn').addEventListener('click', loadCards);
-document.getElementById('filterStatus').addEventListener('change', render);
-document.getElementById('search').addEventListener('input', render);
+document.getElementById('filterStatus').addEventListener('change', () => { currentPage = 1; render(); });
+document.getElementById('search').addEventListener('input', () => { currentPage = 1; render(); });
 
 // Charge automatiquement si les identifiants sont déjà mémorisés
 if (urlInput.value && keyInput.value) {

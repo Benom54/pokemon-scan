@@ -968,7 +968,27 @@ async function rehostStockImage(supabaseUrl, serviceKey, tcgdexImageUrl, card) {
   }
 }
 
-async function saveToStock() {
+// Vérifie si une carte identique (même carte TCGdex, même état, même édition/stamp) est déjà en stock
+async function checkDuplicate(supabaseUrl, serviceKey) {
+  if (!lastCard?.id) return false;
+  try {
+    const condition = encodeURIComponent(document.getElementById('cardCondition').value);
+    const firstEdition = document.getElementById('cardEdition').checked;
+    const stamp = document.getElementById('cardStamp').checked;
+    const params = `tcgdex_id=eq.${encodeURIComponent(lastCard.id)}&condition=eq.${condition}&first_edition=eq.${firstEdition}&stamp=eq.${stamp}&status=eq.en_stock&select=id`;
+    const resp = await fetch(`${supabaseUrl}/rest/v1/cartes?${params}`, {
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+    });
+    if (!resp.ok) return false;
+    const rows = await resp.json();
+    return rows.length > 0;
+  } catch (err) {
+    console.warn('Vérification doublon impossible :', err);
+    return false;
+  }
+}
+
+async function saveToStock(force) {
   const url = supabaseUrlInput.value.trim().replace(/\/$/, '');
   const key = supabaseKeyInput.value.trim();
   const stockStatusEl = document.getElementById('stockStatus');
@@ -983,6 +1003,20 @@ async function saveToStock() {
   const saveBtn = document.getElementById('saveStockBtn');
   saveBtn.disabled = true;
   stockStatusEl.style.color = '';
+
+  if (!force) {
+    stockStatusEl.textContent = 'Vérification des doublons...';
+    const isDuplicate = await checkDuplicate(url, key);
+    if (isDuplicate) {
+      stockStatusEl.style.color = 'var(--gold)';
+      stockStatusEl.innerHTML = 'Une carte identique (même carte, même état, même édition) est déjà en stock. ' +
+        '<button class="secondary" id="forceSaveBtn" style="margin-top:8px;">Enregistrer quand même</button>';
+      document.getElementById('forceSaveBtn').addEventListener('click', () => saveToStock(true));
+      saveBtn.disabled = false;
+      return;
+    }
+  }
+
   stockStatusEl.textContent = 'Envoi des photos et hébergement de l\'illustration...';
 
   const photoUrl = await uploadImageToStorage(url, key, frontImage, frontMediaType);
@@ -1044,7 +1078,7 @@ async function saveToStock() {
   }
 }
 
-document.getElementById('saveStockBtn').addEventListener('click', saveToStock);
+document.getElementById('saveStockBtn').addEventListener('click', () => saveToStock(false));
 
 document.getElementById('toLabelBtn').addEventListener('click', goToLabel);
 
