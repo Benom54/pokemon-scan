@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestion du stock</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --ink: #1c1b19;
+    --paper: #faf9f6;
+    --card: #ffffff;
+    --line: #dcd9d1;
+    --accent: #2f5d4f;
+    --accent-ink: #eaf2ef;
+    --danger: #a3312d;
+    --danger-bg: #fbeceb;
+    --gold: #9c7a2e;
+    --gold-bg: #fbf3df;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+  .sub { color: #6b6a64; font-size: 14px; margin: 0 0 24px; }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+  label.mt { margin-top: 14px; }
+  input[type="text"], input[type="password"], select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .row select { width: auto; min-width: 160px; }
+  .row input[type="text"] { flex: 1; min-width: 200px; }
+
+  button {
+    padding: 9px 16px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.danger { background: var(--danger); }
+  button.ghost { background: var(--accent-ink); color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  #status { font-size: 13px; margin-top: 8px; min-height: 18px; }
+  #status.error { color: var(--danger); }
+  #status.ok { color: var(--accent); }
+
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .item {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .item img {
+    width: 52px; height: 72px;
+    object-fit: contain;
+    background: var(--paper);
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-weight: 700; font-size: 14px; }
+  .item-meta { font-size: 12px; color: #8b897f; }
+  .item-price { font-weight: 700; font-size: 14px; margin-top: 2px; }
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    margin-left: 6px;
+    letter-spacing: 0.02em;
+  }
+  .badge.en_stock { background: var(--accent-ink); color: var(--accent); }
+  .badge.vendue { background: var(--gold-bg); color: var(--gold); }
+
+  .item-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .item-actions button { white-space: nowrap; }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .page-info { font-size: 13px; color: #6b6a64; }
+
+  .field-edit { margin-top: 14px; }
+  .field-edit label { font-weight: 600; font-size: 12px; color: #6b6a64; }
+
+  .print-modal .modal { max-width: 480px; }
+  .print-fields { margin-bottom: 16px; }
+  .print-fields .row { display: flex; gap: 10px; }
+  .print-fields .row > div { flex: 1; }
+  .print-fields label { margin-top: 10px; }
+
+  .preview-zone { display: flex; justify-content: center; margin: 12px 0 16px; }
+  #printLabel {
+    background: #fff;
+    border: 1px solid #000;
+    display: flex;
+    align-items: center;
+    padding: 3mm;
+    gap: 3mm;
+  }
+  .label-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    overflow: hidden;
+  }
+  .label-name {
+    font-weight: 700;
+    line-height: 1.15;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .label-meta {
+    font-weight: 700;
+    font-size: 8px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--gold);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .label-price { font-weight: 800; white-space: nowrap; overflow: hidden; }
+  #printQr { flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+
+  @media print {
+    body * { visibility: hidden; }
+    #printLabel, #printLabel * { visibility: visible; }
+    #printLabel { position: fixed; top: 0; left: 0; box-shadow: none; border: none; margin: 0; }
+    @page { margin: 0; }
+  }
+
+  .empty, .loading {
+    text-align: center;
+    color: #8b897f;
+    font-size: 14px;
+    padding: 40px 0;
+  }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(28,27,25,0.55);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border-radius: 14px;
+    max-width: 420px;
+    width: 100%;
+    padding: 24px;
+  }
+  .modal h2 { font-size: 17px; margin: 0 0 8px; }
+  .modal p { font-size: 14px; color: #6b6a64; margin: 0 0 20px; line-height: 1.5; }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions button { flex: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Gestion du stock</h1>
+  <p class="sub">Liste complète de tes cartes (en stock et vendues), avec suppression définitive.</p>
+
+  <div class="panel">
+    <label for="supabaseUrl">URL du projet Supabase</label>
+    <input type="text" id="supabaseUrl" placeholder="https://xxxxx.supabase.co">
+    <label for="supabaseKey" class="mt">Clé service_role Supabase</label>
+    <input type="password" id="supabaseKey" placeholder="eyJ...">
+    <p class="sub" style="margin:8px 0 0;">Mémorisées localement dans ce navigateur (partagées avec l'outil de scan si utilisé sur cet appareil).</p>
+    <div id="status"></div>
+  </div>
+
+  <div class="row">
+    <select id="filterStatus">
+      <option value="all">Toutes les cartes</option>
+      <option value="en_stock">En stock uniquement</option>
+      <option value="vendue">Vendues uniquement</option>
+    </select>
+    <input type="text" id="search" placeholder="Chercher par nom...">
+    <button class="ghost" id="refreshBtn">Actualiser</button>
+  </div>
+
+  <div id="loading" class="loading">Charge tes identifiants Supabase ci-dessus pour voir le stock.</div>
+  <div id="empty" class="empty" style="display:none;">Aucune carte ne correspond.</div>
+  <div id="list" class="list"></div>
+  <div id="pagination" class="pagination"></div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>Supprimer définitivement ?</h2>
+    <p id="modalText"></p>
+    <div class="modal-actions">
+      <button class="ghost" id="modalCancel">Annuler</button>
+      <button class="danger" id="modalConfirm">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModalOverlay">
+  <div class="modal">
+    <h2 id="editModalTitle">Modifier la carte</h2>
+
+    <div class="field-edit">
+      <label for="editSlug">Slug (URL de la page produit)</label>
+      <input type="text" id="editSlug">
+    </div>
+
+    <div class="field-edit">
+      <label for="editPrice">Prix (€)</label>
+      <input type="text" id="editPrice">
+    </div>
+    <div class="field-edit">
+      <label for="editCondition">État</label>
+      <select id="editCondition">
+        <option value="Near Mint">Near Mint</option>
+        <option value="Excellent">Excellent</option>
+        <option value="Good">Good</option>
+        <option value="Played">Played</option>
+        <option value="Poor">Poor</option>
+      </select>
+    </div>
+    <div class="field-edit">
+      <label for="editStatus">Statut</label>
+      <select id="editStatus">
+        <option value="en_stock">En stock</option>
+        <option value="vendue">Vendue</option>
+      </select>
+    </div>
+    <div id="editStatusMsg" style="font-size:13px; margin-top:10px; min-height:18px;"></div>
+
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="ghost" id="editModalCancel">Annuler</button>
+      <button id="editModalSave">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay print-modal" id="printModalOverlay">
+  <div class="modal">
+    <h2>Réimprimer l'étiquette</h2>
+
+    <div class="print-fields">
+      <label for="printName">Nom (sur l'étiquette)</label>
+      <input type="text" id="printName">
+      <label for="printPrice">Prix (€)</label>
+      <input type="text" id="printPrice">
+      <div class="row">
+        <div>
+          <label for="printW">Largeur (mm)</label>
+          <input type="text" id="printW" value="50">
+        </div>
+        <div>
+          <label for="printH">Hauteur (mm)</label>
+          <input type="text" id="printH" value="30">
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-zone">
+      <div id="printLabel">
+        <div class="label-text">
+          <div class="label-name" id="printLabelName"></div>
+          <div class="label-meta" id="printLabelMeta"></div>
+          <div class="label-price" id="printLabelPrice"></div>
+        </div>
+        <div id="printQr"></div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="ghost" id="printModalCancel">Fermer</button>
+      <button id="printModalGo">Imprimer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const urlInput = document.getElementById('supabaseUrl');
+const keyInput = document.getElementById('supabaseKey');
+const statusEl = document.getElementById('status');
+const listEl = document.getElementById('list');
+const loadingEl = document.getElementById('loading');
+const emptyEl = document.getElementById('empty');
+
+let allCards = [];
+let pendingDeleteId = null;
+
+try {
+  const savedUrl = localStorage.getItem('pokemon_tool_supabase_url');
+  const savedKey = localStorage.getItem('pokemon_tool_supabase_key');
+  if (savedUrl) urlInput.value = savedUrl;
+  if (savedKey) keyInput.value = savedKey;
+} catch (e) {}
+
+urlInput.addEventListener('input', () => {
+  try { localStorage.setItem('pokemon_tool_supabase_url', urlInput.value.trim()); } catch (e) {}
+});
+keyInput.addEventListener('input', () => {
+  try { localStorage.setItem('pokemon_tool_supabase_key', keyInput.value.trim()); } catch (e) {}
+});
+
+function setStatus(text, kind) {
+  statusEl.textContent = text;
+  statusEl.className = kind || '';
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+async function loadCards() {
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  if (!url || !key) {
+    setStatus('Renseigne l\'URL et la clé service_role Supabase.', 'error');
+    return;
+  }
+  setStatus('');
+  loadingEl.style.display = 'block';
+  loadingEl.textContent = 'Chargement...';
+  listEl.innerHTML = '';
+  emptyEl.style.display = 'none';
+
+  try {
+    const resp = await fetch(`${url}/rest/v1/cartes?select=*&order=created_at.desc`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` }
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    allCards = await resp.json();
+    loadingEl.style.display = 'none';
+    render();
+  } catch (err) {
+    loadingEl.textContent = 'Erreur de chargement : ' + err.message;
+  }
+}
+
+const PAGE_SIZE = 10;
+let currentPage = 1;
+
+function render() {
+  const filterStatus = document.getElementById('filterStatus').value;
+  const query = document.getElementById('search').value.trim().toLowerCase();
+
+  let cards = allCards.filter(c => {
+    if (filterStatus !== 'all' && c.status !== filterStatus) return false;
+    if (query && !(c.name || '').toLowerCase().includes(query)) return false;
+    return true;
+  });
+
+  if (cards.length === 0) {
+    listEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  const totalPages = Math.max(1, Math.ceil(cards.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const pageCards = cards.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  listEl.innerHTML = pageCards.map(c => {
+    const priceText = c.price != null ? `${Number(c.price).toFixed(2)} €` : 'Prix non défini';
+    const numberSet = [c.card_number, c.set_name].filter(Boolean).join(' · ');
+    const statusLabel = c.status === 'vendue' ? 'Vendue' : 'En stock';
+    return `
+      <div class="item">
+        ${c.image_url ? `<img src="${escapeHtml(c.image_url)}" alt="">` : '<div style="width:52px;height:72px;flex-shrink:0;"></div>'}
+        <div class="item-info">
+          <div class="item-name">${escapeHtml(c.name)}<span class="badge ${c.status}">${statusLabel}</span></div>
+          <div class="item-meta">${escapeHtml(numberSet)}</div>
+          <div class="item-price">${priceText}</div>
+        </div>
+        <div class="item-actions">
+          <button class="ghost" data-print-id="${c.id}">Imprimer</button>
+          <button class="ghost" data-edit-id="${c.id}">Modifier</button>
+          <button class="danger" data-id="${c.id}" data-name="${escapeHtml(c.name)}">Supprimer</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  listEl.querySelectorAll('button[data-id]').forEach(btn => {
+    btn.addEventListener('click', () => openDeleteModal(btn.dataset.id, btn.dataset.name));
+  });
+  listEl.querySelectorAll('button[data-edit-id]').forEach(btn => {
+    btn.addEventListener('click', () => openEditModal(btn.dataset.editId));
+  });
+  listEl.querySelectorAll('button[data-print-id]').forEach(btn => {
+    btn.addEventListener('click', () => openPrintModal(btn.dataset.printId));
+  });
+
+  renderPagination(totalPages, cards.length);
+}
+
+function renderPagination(totalPages, totalCount) {
+  const paginationEl = document.getElementById('pagination');
+  if (totalPages <= 1) {
+    paginationEl.innerHTML = '';
+    return;
+  }
+  paginationEl.innerHTML = `
+    <button class="ghost" id="pagePrev" ${currentPage <= 1 ? 'disabled' : ''}>← Précédent</button>
+    <span class="page-info">Page ${currentPage} / ${totalPages} (${totalCount} carte${totalCount > 1 ? 's' : ''})</span>
+    <button class="ghost" id="pageNext" ${currentPage >= totalPages ? 'disabled' : ''}>Suivant →</button>
+  `;
+  document.getElementById('pagePrev')?.addEventListener('click', () => { currentPage--; render(); });
+  document.getElementById('pageNext')?.addEventListener('click', () => { currentPage++; render(); });
+}
+
+function openDeleteModal(id, name) {
+  pendingDeleteId = id;
+  document.getElementById('modalText').textContent =
+    `"${name}" sera définitivement supprimée de ta base. Cette action est irréversible (les photos déjà hébergées ne sont pas effacées automatiquement).`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+document.getElementById('modalCancel').addEventListener('click', () => {
+  pendingDeleteId = null;
+  document.getElementById('modalOverlay').classList.remove('open');
+});
+
+document.getElementById('modalConfirm').addEventListener('click', async () => {
+  if (!pendingDeleteId) return;
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  const id = pendingDeleteId;
+
+  document.getElementById('modalOverlay').classList.remove('open');
+  setStatus('Suppression en cours...', '');
+
+  try {
+    const resp = await fetch(`${url}/rest/v1/cartes?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: 'return=minimal'
+      }
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+
+    allCards = allCards.filter(c => c.id !== id);
+    render();
+    setStatus('✓ Carte supprimée définitivement.', 'ok');
+  } catch (err) {
+    setStatus('Erreur lors de la suppression : ' + err.message, 'error');
+  }
+  pendingDeleteId = null;
+});
+
+document.getElementById('modalOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'modalOverlay') {
+    pendingDeleteId = null;
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+});
+
+let pendingEditId = null;
+
+function openEditModal(id) {
+  const card = allCards.find(c => c.id === id);
+  if (!card) return;
+  pendingEditId = id;
+  document.getElementById('editModalTitle').textContent = `Modifier « ${card.name} »`;
+  document.getElementById('editSlug').value = card.slug || '';
+  document.getElementById('editPrice').value = card.price != null ? card.price : '';
+  document.getElementById('editCondition').value = card.condition || 'Near Mint';
+  document.getElementById('editStatus').value = card.status || 'en_stock';
+  document.getElementById('editStatusMsg').textContent = '';
+  document.getElementById('editModalOverlay').classList.add('open');
+}
+
+function closeEditModal() {
+  pendingEditId = null;
+  document.getElementById('editModalOverlay').classList.remove('open');
+}
+
+document.getElementById('editModalCancel').addEventListener('click', closeEditModal);
+document.getElementById('editModalOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'editModalOverlay') closeEditModal();
+});
+
+document.getElementById('editModalSave').addEventListener('click', async () => {
+  if (!pendingEditId) return;
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  const msgEl = document.getElementById('editStatusMsg');
+
+  const updates = {
+    slug: slugify(document.getElementById('editSlug').value) || null,
+    price: parseFloat(document.getElementById('editPrice').value) || null,
+    condition: document.getElementById('editCondition').value,
+    status: document.getElementById('editStatus').value
+  };
+
+  msgEl.style.color = '';
+  msgEl.textContent = 'Enregistrement...';
+
+  try {
+    const resp = await fetch(`${url}/rest/v1/cartes?id=eq.${pendingEditId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify(updates)
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+
+    const idx = allCards.findIndex(c => c.id === pendingEditId);
+    if (idx !== -1) allCards[idx] = { ...allCards[idx], ...updates };
+
+    closeEditModal();
+    render();
+    setStatus('✓ Carte mise à jour.', 'ok');
+  } catch (err) {
+    msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Erreur : ' + err.message;
+  }
+});
+
+function mmToPx(mm) { return mm * (96 / 25.4); }
+
+function slugify(str) {
+  return (str || '')
+    .toString()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function fitText(el, maxWidth, maxHeight, startPx, minPx) {
+  let fs = startPx;
+  el.style.fontSize = fs + 'px';
+  while (fs > minPx && (el.scrollWidth > maxWidth || el.scrollHeight > maxHeight)) {
+    fs -= 1;
+    el.style.fontSize = fs + 'px';
+  }
+  return fs;
+}
+
+let printCardId = null;
+
+function openPrintModal(id) {
+  const card = allCards.find(c => c.id === id);
+  if (!card) return;
+  printCardId = id;
+
+  const numberSet = [card.card_number, card.set_name].filter(Boolean).join(' - ');
+  const labelName = numberSet ? `${card.name} · ${numberSet}` : card.name;
+
+  document.getElementById('printName').value = labelName;
+  document.getElementById('printPrice').value = card.price != null ? Number(card.price).toFixed(2) : '';
+  document.getElementById('printW').value = '50';
+  document.getElementById('printH').value = '30';
+
+  document.getElementById('printModalOverlay').classList.add('open');
+  renderPrintLabel(card);
+}
+
+function renderPrintLabel(card) {
+  const name = document.getElementById('printName').value || 'Nom de la carte';
+  const price = document.getElementById('printPrice').value || '0.00';
+  const wMm = parseFloat(document.getElementById('printW').value) || 50;
+  const hMm = parseFloat(document.getElementById('printH').value) || 30;
+
+  const nameEl = document.getElementById('printLabelName');
+  const priceEl = document.getElementById('printLabelPrice');
+  const metaEl = document.getElementById('printLabelMeta');
+  nameEl.textContent = name;
+  priceEl.textContent = price + ' €';
+
+  const metaParts = [];
+  if (card.first_edition) metaParts.push('1ère édition');
+  if (card.stamp) metaParts.push('Stamp');
+  if (card.graded && card.grade != null) metaParts.push(`Gradée ${card.grade}`);
+  if (card.condition) metaParts.push(card.condition);
+  const metaText = metaParts.join(' · ');
+  metaEl.textContent = metaText;
+  metaEl.style.display = metaText ? 'block' : 'none';
+
+  const label = document.getElementById('printLabel');
+  label.style.width = mmToPx(wMm) + 'px';
+  label.style.height = mmToPx(hMm) + 'px';
+
+  const qrSizeMm = Math.max(hMm - 6, 10);
+  const qrSizePx = Math.round(mmToPx(qrSizeMm));
+  const qrDiv = document.getElementById('printQr');
+  qrDiv.innerHTML = '';
+  qrDiv.style.width = qrSizePx + 'px';
+  qrDiv.style.height = qrSizePx + 'px';
+
+  // URL réelle de la page produit (dossier carte-pokemon/ pour une adresse sans .html)
+  const qrUrl = card.slug
+    ? `/carte-pokemon/?slug=${encodeURIComponent(card.slug)}`
+    : `/carte-pokemon/?id=${encodeURIComponent(card.id)}`;
+  new QRCode(qrDiv, { text: qrUrl, width: qrSizePx, height: qrSizePx, correctLevel: QRCode.CorrectLevel.L });
+
+  requestAnimationFrame(() => {
+    const textEl = document.querySelector('#printLabel .label-text');
+    const textWidth = textEl.clientWidth;
+    const textHeight = textEl.clientHeight;
+
+    if (metaText) fitText(metaEl, textWidth, mmToPx(hMm * 0.16), 9, 6);
+    const metaH = metaText ? metaEl.scrollHeight : 0;
+
+    fitText(priceEl, textWidth, textHeight * 0.45, mmToPx(hMm * 0.42), 8);
+    const priceH = priceEl.scrollHeight;
+
+    const gap = 4;
+    const nameMaxHeight = Math.max(textHeight - metaH - priceH - gap, mmToPx(hMm * 0.15));
+    fitText(nameEl, textWidth, nameMaxHeight, mmToPx(hMm * 0.34), 7);
+  });
+}
+
+['printName', 'printPrice', 'printW', 'printH'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    const card = allCards.find(c => c.id === printCardId);
+    if (card) renderPrintLabel(card);
+  });
+});
+
+document.getElementById('printModalCancel').addEventListener('click', () => {
+  printCardId = null;
+  document.getElementById('printModalOverlay').classList.remove('open');
+});
+document.getElementById('printModalOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'printModalOverlay') {
+    printCardId = null;
+    document.getElementById('printModalOverlay').classList.remove('open');
+  }
+});
+document.getElementById('printModalGo').addEventListener('click', () => window.print());
+
+document.getElementById('refreshBtn').addEventListener('click', loadCards);
+document.getElementById('filterStatus').addEventListener('change', () => { currentPage = 1; render(); });
+document.getElementById('search').addEventListener('input', () => { currentPage = 1; render(); });
+
+// Charge automatiquement si les identifiants sont déjà mémorisés
+if (urlInput.value && keyInput.value) {
+  loadCards();
+} else {
+  loadingEl.textContent = 'Charge tes identifiants Supabase ci-dessus pour voir le stock.';
+}
+</script>
+</body>
+</html>
