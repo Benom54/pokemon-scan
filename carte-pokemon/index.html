@@ -77,6 +77,14 @@
   .series-row span { font-size: 13px; color: #8b897f; }
 
   .price { font-size: 32px; font-weight: 800; margin: 12px 0 20px; }
+  .price .price-original {
+    text-decoration: line-through;
+    color: #8b897f;
+    font-weight: 600;
+    font-size: 20px;
+    margin-right: 10px;
+  }
+  .price .price-discounted { color: #a3312d; }
 
   .cta {
     display: block;
@@ -146,27 +154,53 @@ async function loadCard() {
   const filter = slug ? `slug=eq.${encodeURIComponent(slug)}` : `id=eq.${encodeURIComponent(id)}`;
 
   try {
-    const resp = await fetch(`${SUPABASE_URL}/rest/v1/cartes?${filter}&select=*&limit=1`, {
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
-    });
-    if (!resp.ok) throw new Error(await resp.text());
-    const rows = await resp.json();
+    const [cardResp, discountResp] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/cartes?${filter}&select=*&limit=1`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      }),
+      fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.discount_percent&select=value`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      })
+    ]);
+    if (!cardResp.ok) throw new Error(await cardResp.text());
+    const rows = await cardResp.json();
 
     if (rows.length === 0) {
       contentEl.innerHTML = '<div class="state">Cette carte n\'est plus disponible — elle a peut-être déjà été vendue, ou le lien est incorrect.</div>';
       return;
     }
 
-    renderCard(rows[0]);
+    let discountPercent = 0;
+    if (discountResp.ok) {
+      const discountRows = await discountResp.json();
+      if (discountRows.length > 0) discountPercent = parseInt(discountRows[0].value, 10) || 0;
+    }
+
+    renderCard(rows[0], discountPercent);
   } catch (err) {
     contentEl.innerHTML = `<div class="state">Erreur de chargement : ${escapeHtml(err.message)}</div>`;
   }
 }
 
-function renderCard(c) {
+function renderCard(c, discountPercent) {
   const contentEl = document.getElementById('content');
-  const priceText = c.price != null ? `${Number(c.price).toFixed(2)} €` : 'Prix sur demande';
   const numberSet = [c.card_number, c.set_name].filter(Boolean).join(' · ');
+
+  let priceText;
+  let priceForEmail;
+  if (c.price != null) {
+    if (discountPercent > 0) {
+      const discounted = c.price * (1 - discountPercent / 100);
+      priceText = `<span class="price-original">${Number(c.price).toFixed(2)} €</span><span class="price-discounted">${discounted.toFixed(2)} €</span>`;
+      priceForEmail = `${discounted.toFixed(2)} €`;
+    } else {
+      priceText = `${Number(c.price).toFixed(2)} €`;
+      priceForEmail = priceText;
+    }
+  } else {
+    priceText = 'Prix sur demande';
+    priceForEmail = priceText;
+  }
 
   const badges = [
     c.first_edition ? '<span class="badge">1ère édition</span>' : '',
@@ -188,7 +222,7 @@ function renderCard(c) {
   }
 
   const subject = encodeURIComponent(`Réservation carte : ${c.name}`);
-  const body = encodeURIComponent(`Bonjour, je souhaite réserver la carte "${c.name}" (${numberSet}) à ${priceText}.`);
+  const body = encodeURIComponent(`Bonjour, je souhaite réserver la carte "${c.name}" (${numberSet}) à ${priceForEmail}.`);
 
   contentEl.innerHTML = `
     <div class="card-panel">
