@@ -234,6 +234,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
         Favoris
       </a>
+      <a class="nav-item" href="/rachat-de-cartes-pokemon/">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Rachat de cartes
+      </a>
     </div>
 
     <div class="nav-group">
@@ -585,7 +589,7 @@ function renderCard(c, discountPercent) {
   if (photos.length === 0 && c.image_url) photos.push(`<div class="photo-frame" id="mainPhotoFrame"><img src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.name)}"><div class="photo-label">Illustration officielle</div></div>`);
 
   const isSoldOut = c.status === 'vendue';
-  const inCart = cart.has(c.id);
+  const inCart = cart.has(`carte:${c.id}`);
   const isRare = c.holo || c.graded || c.first_edition;
 
   contentEl.innerHTML = `
@@ -615,7 +619,7 @@ function renderCard(c, discountPercent) {
 
   if (!isSoldOut) {
     document.getElementById('cartToggleBtn').addEventListener('click', (e) => {
-      const id = c.id;
+      const id = `carte:${c.id}`;
       if (cart.has(id)) { cart.delete(id); showToast('Retiré du panier'); }
       else { cart.add(id); burst(e.currentTarget); showToast('Hop, dans le sac !'); }
       saveCart();
