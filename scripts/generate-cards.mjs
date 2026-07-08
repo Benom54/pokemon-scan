@@ -100,18 +100,20 @@ async function main() {
 
     const cardPanelHtml = `<div id="content"><div class="card-panel ${isRare && !isSoldOut ? 'rare-halo' : ''}">
       <div class="photos">${photos.join('')}</div>
-      <div class="badges">${badges}${isSoldOut ? '<span class="badge sold">Rupture de stock</span>' : ''}</div>
-      <div class="meta">${escapeHtml(numberSet)}</div>
-      ${c.series_name ? `
-        <div class="series-row">
-          ${seriesLogo ? `<img src="${escapeHtml(seriesLogo)}" alt="">` : ''}
-          <span>${escapeHtml(c.series_name)}</span>
-        </div>
-      ` : ''}
-      <div class="price-block price mono">${priceHtml}</div>
-      ${isSoldOut
-        ? `<div class="cta cta-disabled">Indisponible — déjà vendue</div>`
-        : `<button type="button" class="cta" id="cartToggleBtn" data-id="${escapeHtml(c.id)}">Ajouter au panier</button>`}
+      <div class="info-col">
+        <div class="badges">${badges}${isSoldOut ? '<span class="badge sold">Rupture de stock</span>' : ''}</div>
+        <div class="meta">${escapeHtml(numberSet)}</div>
+        ${c.series_name ? `
+          <div class="series-row">
+            ${seriesLogo ? `<img src="${escapeHtml(seriesLogo)}" alt="">` : ''}
+            <span>${escapeHtml(c.series_name)}</span>
+          </div>
+        ` : ''}
+        <div class="price-block price mono">${priceHtml}</div>
+        ${isSoldOut
+          ? `<div class="cta cta-disabled">Indisponible — déjà vendue</div>`
+          : `<button type="button" class="cta" id="cartToggleBtn" data-id="${escapeHtml(c.id)}">Ajouter au panier</button>`}
+      </div>
     </div></div>
     `;
 
