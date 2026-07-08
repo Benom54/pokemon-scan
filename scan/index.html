@@ -63,7 +63,7 @@
     border: 1px solid var(--line);
     border-radius: 8px;
     font-size: 14px;
-    background: #fff;
+    background: var(--card);
     color: var(--ink);
   }
   input:focus, select:focus {
@@ -882,8 +882,8 @@ function goToLabel() {
   document.getElementById('labelConditionSelect').value = document.getElementById('cardCondition').value;
 
   if (lastCard && lastSlug) {
-    // URL réelle de la page produit (dossier carte-pokemon/ pour une adresse sans .html)
-    document.getElementById('url').value = `/carte-pokemon/?slug=${encodeURIComponent(lastSlug)}`;
+    // URL réelle de la page produit statique (générée automatiquement par carte)
+    document.getElementById('url').value = `/carte-pokemon/${encodeURIComponent(lastSlug)}/`;
   }
 
   showView('label');
