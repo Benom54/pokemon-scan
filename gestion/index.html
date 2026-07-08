@@ -4,29 +4,31 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Gestion du stock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root {
-    --ink: #1c1b19;
-    --paper: #faf9f6;
-    --card: #ffffff;
-    --line: #dcd9d1;
-    --accent: #2f5d4f;
-    --accent-ink: #eaf2ef;
-    --danger: #a3312d;
-    --danger-bg: #fbeceb;
-    --gold: #9c7a2e;
-    --gold-bg: #fbf3df;
+    --ink: #eef1f5;
+    --paper: #0e1116;
+    --card: #171b24;
+    --line: #262c38;
+    --accent: #4fa47d;
+    --accent-ink: #16241d;
+    --danger: #e0838a;
+    --danger-bg: #3a2020;
+    --gold: #e8c583;
+    --gold-bg: #2e2416;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: var(--paper);
     color: var(--ink);
   }
   .wrap { max-width: 900px; margin: 0 auto; padding: 32px 16px 64px; }
-  h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+  h1 { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; margin: 0 0 4px; }
   .sub { color: #6b6a64; font-size: 14px; margin: 0 0 24px; }
 
   .panel {
