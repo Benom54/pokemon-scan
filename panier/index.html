@@ -126,6 +126,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
         Favoris
       </a>
+      <a class="nav-item" href="/rachat-de-cartes-pokemon/">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Rachat de cartes
+      </a>
     </div>
     <div class="nav-group">
       <div class="nav-label">Par bloc</div>
@@ -242,32 +246,63 @@ async function loadBlocks() {
 
 async function loadCart() {
   const contentEl = document.getElementById('content');
-  const ids = [...cart];
+  const rawKeys = [...cart];
 
-  if (ids.length === 0) {
+  if (rawKeys.length === 0) {
     contentEl.innerHTML = `<div class="empty-cart">Ton sac est vide — direction le Centre Pokémon pour trouver ta prochaine carte.<br><a href="/">Retourne parcourir le catalogue →</a></div>`;
     return;
   }
 
+  // Compatibilité avec d'anciens paniers stockés avant la séparation cartes / produits scellés
+  const carteIds = [];
+  const scelleIds = [];
+  rawKeys.forEach(key => {
+    if (key.startsWith('scelle:')) scelleIds.push(key.slice('scelle:'.length));
+    else if (key.startsWith('carte:')) carteIds.push(key.slice('carte:'.length));
+    else carteIds.push(key);
+  });
+
   try {
-    const filter = ids.map(id => `id.eq.${id}`).join(',');
-    const [cardsResp, discountResp] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/cartes?or=(${filter})&select=*`, {
-        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
-      }),
+    const requests = [
       fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.discount_percent&select=value`, {
         headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
       })
-    ]);
-    if (!cardsResp.ok) throw new Error(await cardsResp.text());
-    const cards = await cardsResp.json();
+    ];
+    if (carteIds.length > 0) {
+      const filter = carteIds.map(id => `id.eq.${id}`).join(',');
+      requests.push(fetch(`${SUPABASE_URL}/rest/v1/cartes?or=(${filter})&select=*`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      }));
+    } else {
+      requests.push(Promise.resolve({ ok: true, json: async () => [] }));
+    }
+    if (scelleIds.length > 0) {
+      const filter = scelleIds.map(id => `id.eq.${id}`).join(',');
+      requests.push(fetch(`${SUPABASE_URL}/rest/v1/produits_scelles?or=(${filter})&select=*`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      }));
+    } else {
+      requests.push(Promise.resolve({ ok: true, json: async () => [] }));
+    }
+
+    const [discountResp, cardsResp, scellesResp] = await Promise.all(requests);
 
     if (discountResp.ok) {
       const rows = await discountResp.json();
       if (rows.length > 0) discountPercent = parseInt(rows[0].value, 10) || 0;
     }
+    if (!cardsResp.ok) throw new Error(await cardsResp.text());
+    if (!scellesResp.ok) throw new Error(await scellesResp.text());
 
-    renderCart(cards);
+    const cards = (await cardsResp.json()).map(c => ({ ...c, _kind: 'carte', _cartKey: `carte:${c.id}` }));
+    const scelles = (await scellesResp.json()).map(p => ({
+      ...p, _kind: 'scelle', _cartKey: `scelle:${p.id}`,
+      name: p.nom, price: p.prix, // uniformise les noms de champs avec les cartes pour un rendu commun
+      card_number: p.type, set_name: p.series_name,
+      condition: null, status: (p.status === 'vendue' || p.quantite <= 0) ? 'vendue' : 'en_stock'
+    }));
+
+    renderCart([...cards, ...scelles]);
   } catch (err) {
     contentEl.innerHTML = `<div class="empty-cart">Erreur de chargement : ${escapeHtml(err.message)}</div>`;
   }
@@ -276,9 +311,9 @@ async function loadCart() {
 function renderCart(cards) {
   const contentEl = document.getElementById('content');
 
-  // Les cartes retirées du stock entre-temps (supprimées en base) ne sont plus dans "cards"
-  const foundIds = new Set(cards.map(c => c.id));
-  [...cart].forEach(id => { if (!foundIds.has(id)) cart.delete(id); });
+  // Les cartes/produits retirés du stock entre-temps (supprimés en base) ne sont plus dans "cards"
+  const foundKeys = new Set(cards.map(c => c._cartKey));
+  [...cart].forEach(key => { if (!foundKeys.has(key)) cart.delete(key); });
   saveCart();
   updateCartUI();
 
@@ -318,7 +353,7 @@ function renderCart(cards) {
           ${isSoldOut ? '<div class="unavailable-tag">A trouvé un nouveau dresseur</div>' : ''}
         </div>
         <div class="cart-item-price mono">${priceHtml}</div>
-        <div class="cart-item-remove" data-remove="${escapeHtml(c.id)}" title="Retirer">
+        <div class="cart-item-remove" data-remove="${escapeHtml(c._cartKey)}" title="Retirer">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </div>
       </div>
