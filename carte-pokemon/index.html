@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Carte Pokémon — Retrocarte</title>
+<meta name="description" content="Cartes Pokémon vérifiées et notées à la main, en vente sur Retrocarte.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -135,7 +136,7 @@
   .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: #2e2416; color: var(--brass-bright); margin: 0 6px 6px 0; letter-spacing: 0.02em; }
   .badge.cond { background: rgba(79,164,125,0.15); color: var(--emerald-bright); }
 
-  h1 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px; margin: 0 0 4px; }
+  #pageH1 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px; margin: 0 0 14px; }
   .meta { color: var(--muted); font-size: 14px; margin-bottom: 4px; }
   .series-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
   .series-row img { height: 18px; width: auto; }
@@ -267,6 +268,7 @@
     <div class="breadcrumb"><a href="/">← Retour au catalogue</a></div>
 
     <main>
+      <h1 id="pageH1">Fiche carte Pokémon — Retrocarte</h1>
       <div id="content"><div class="loading">
         <svg class="pokeball-loader" viewBox="0 0 24 24">
           <path d="M12 2a10 10 0 0 1 10 10h-7a3 3 0 0 0-6 0H2A10 10 0 0 1 12 2z" fill="#e0838a"/>
@@ -465,6 +467,12 @@ async function loadCard() {
   const slug = getParam('slug');
   const id = getParam('id');
 
+  // Ancien lien avec ?slug=... -> on renvoie vers la vraie page statique /carte-pokemon/{slug}/
+  if (slug) {
+    window.location.replace(`/carte-pokemon/${encodeURIComponent(slug)}/`);
+    return;
+  }
+
   if (!slug && !id) {
     contentEl.innerHTML = '<div class="state">Aucune carte spécifiée.</div>';
     return;
@@ -507,6 +515,8 @@ function renderCard(c, discountPercent) {
 
   const titleParts = [c.name, numberSet, c.condition].filter(Boolean);
   document.title = `${titleParts.join(' — ')} | Retrocarte`;
+  const h1El = document.getElementById('pageH1');
+  if (h1El) h1El.textContent = titleParts.join(' — ');
 
   let priceHtml, priceForEmail;
   if (c.price != null) {
@@ -541,7 +551,6 @@ function renderCard(c, discountPercent) {
     <div class="card-panel ${isRare && !isSoldOut ? 'rare-halo' : ''}">
       <div class="photos">${photos.join('')}</div>
       <div class="badges">${badges}${isSoldOut ? '<span class="badge sold">Rupture de stock</span>' : ''}</div>
-      <h1>${escapeHtml(c.name)}</h1>
       <div class="meta">${escapeHtml(numberSet)}</div>
       ${c.series_name ? `
         <div class="series-row">
