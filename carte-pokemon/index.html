@@ -88,6 +88,17 @@
   .view-toggle button { background: none; border: none; color: var(--muted-dim); padding: 7px 9px; cursor: pointer; display: flex; }
 
   .auth-actions { display: flex; gap: 8px; margin-left: auto; }
+  .icon-btn {
+    position: relative; width: 34px; height: 34px; border-radius: 8px;
+    background: var(--surface); border: 1px solid var(--line); color: var(--muted);
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+  }
+  .icon-btn:hover { border-color: var(--line-bright); color: var(--text); }
+  .icon-btn .count {
+    position: absolute; top: -5px; right: -5px; background: var(--brass); color: var(--ink);
+    font-size: 10px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; padding: 0 3px;
+  }
   .btn-ghost {
     background: var(--surface); border: 1px solid var(--line); color: var(--text);
     padding: 8px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
@@ -131,7 +142,9 @@
   .price-discounted { color: var(--brass-bright); }
   .price { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700; }
 
-  .cta { display: block; text-align: center; padding: 14px; background: var(--emerald); color: #f4fbf7; border-radius: 10px; font-size: 16px; font-weight: 700; }
+  .cta { display: block; width: 100%; text-align: center; padding: 14px; background: var(--emerald); color: #f4fbf7; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .cta.cta-disabled { background: var(--surface-raised); color: var(--muted-dim); cursor: not-allowed; }
+  .badge.sold { background: var(--surface-raised); color: var(--muted); }
   .cta:hover { background: var(--emerald-bright); }
 
   .state, .loading { text-align: center; color: var(--muted); font-size: 15px; padding: 60px 20px; }
@@ -203,14 +216,18 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         <input type="text" id="search" placeholder="Chercher une carte...">
       </form>
-      <a href="/"><select class="sort-select"><option>Plus récentes</option></select></a>
-      <a class="filter-btn" href="/">
+      <select class="sort-select" onchange="window.location.href='/'"><option>Plus récentes</option></select>
+      <div class="filter-btn" onclick="window.location.href='/'">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
         Filtres
-      </a>
-      <a class="view-toggle" href="/">
-        <button><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>
-        <button><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="4" rx="1.5"/><rect x="3" y="10" width="18" height="4" rx="1.5"/><rect x="3" y="16" width="18" height="4" rx="1.5"/></svg></button>
+      </div>
+      <div class="view-toggle" onclick="window.location.href='/'">
+        <button type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>
+        <button type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="4" rx="1.5"/><rect x="3" y="10" width="18" height="4" rx="1.5"/><rect x="3" y="16" width="18" height="4" rx="1.5"/></svg></button>
+      </div>
+      <a class="icon-btn" href="/panier/" id="cartBtn" title="Panier">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/><path d="M2 3h2l2.4 12.4a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7H6"/></svg>
+        <span class="count" id="cartCount">0</span>
       </a>
       <div class="auth-actions" id="authActions"></div>
     </div>
@@ -250,6 +267,12 @@ const CONTACT_EMAIL = 'ton-email@exemple.com';
 const SERIES_LOGO_OVERRIDES = {};
 
 let session = JSON.parse(localStorage.getItem('retrocarte_session') || 'null');
+let cart = new Set(JSON.parse(localStorage.getItem('retrocarte_cart') || '[]'));
+function saveCart() { localStorage.setItem('retrocarte_cart', JSON.stringify([...cart])); }
+function updateCartUI() {
+  const badge = document.getElementById('cartCount');
+  if (badge) badge.textContent = cart.size;
+}
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -435,13 +458,13 @@ function renderCard(c, discountPercent) {
   if (c.photo_back_url) photos.push(`<div><img src="${escapeHtml(c.photo_back_url)}" alt="Verso"><div class="photo-label">Verso</div></div>`);
   if (photos.length === 0 && c.image_url) photos.push(`<div><img src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.name)}"><div class="photo-label">Illustration officielle</div></div>`);
 
-  const subject = encodeURIComponent(`Réservation carte : ${c.name}`);
-  const body = encodeURIComponent(`Bonjour, je souhaite réserver la carte "${c.name}" (${numberSet}) à ${priceForEmail}.`);
+  const isSoldOut = c.status === 'vendue';
+  const inCart = cart.has(c.id);
 
   contentEl.innerHTML = `
     <div class="card-panel">
       <div class="photos">${photos.join('')}</div>
-      <div class="badges">${badges}</div>
+      <div class="badges">${badges}${isSoldOut ? '<span class="badge sold">Rupture de stock</span>' : ''}</div>
       <h1>${escapeHtml(c.name)}</h1>
       <div class="meta">${escapeHtml(numberSet)}</div>
       ${c.series_name ? `
@@ -451,12 +474,26 @@ function renderCard(c, discountPercent) {
         </div>
       ` : ''}
       <div class="price-block price mono">${priceHtml}</div>
-      <a class="cta" href="mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}">Réserver cette carte</a>
+      ${isSoldOut
+        ? `<div class="cta cta-disabled">Indisponible — déjà vendue</div>`
+        : `<button type="button" class="cta" id="cartToggleBtn" data-id="${escapeHtml(c.id)}">${inCart ? 'Retirer du panier' : 'Ajouter au panier'}</button>`}
     </div>
   `;
+
+  if (!isSoldOut) {
+    document.getElementById('cartToggleBtn').addEventListener('click', () => {
+      const id = c.id;
+      if (cart.has(id)) { cart.delete(id); showToast('Retiré du panier'); }
+      else { cart.add(id); showToast('Ajouté au panier'); }
+      saveCart();
+      updateCartUI();
+      renderCard(c, discountPercent);
+    });
+  }
 }
 
 renderAuthActions();
+updateCartUI();
 loadBlocks();
 loadCard();
 </script>
