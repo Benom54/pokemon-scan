@@ -1,0 +1,39 @@
+name: Générer les pages carte
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # toutes les 30 minutes
+  workflow_dispatch:          # bouton "Run workflow" manuel dans l'onglet Actions
+  push:
+    paths:
+      - 'scripts/generate-cards.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Générer les pages carte
+        run: node scripts/generate-cards.mjs
+
+      - name: Publier les changements
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add carte-pokemon
+          if git diff --cached --quiet; then
+            echo "Aucun changement à publier."
+          else
+            git commit -m "Régénération automatique des pages carte"
+            git push
+          fi
