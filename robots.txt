@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /scan/
+Disallow: /gestion/
+Disallow: /panier/
+Allow: /
+
+Sitemap: https://retrocarte.com/sitemap.xml
