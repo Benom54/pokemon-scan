@@ -512,7 +512,7 @@ const SUPABASE_URL = 'https://izfusafzbekuezqitzsp.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_NYWtmqeLH0CMygyhM2R7Yw_ACYqyBCe';
 const CONTACT_EMAIL = 'ton-email@exemple.com';
 const SERIES_LOGO_OVERRIDES = {};
-const PAGE_SIZE = 12;
+let PAGE_SIZE = 12;
 
 let allCards = [];
 let discountPercent = 0;
@@ -559,6 +559,10 @@ async function loadCards() {
       const rows = await settingsResp.json();
       rows.forEach(r => { siteSettings[r.key] = r.value; });
       if (siteSettings.discount_percent != null) discountPercent = parseInt(siteSettings.discount_percent, 10) || 0;
+      if (siteSettings.boutique_page_size != null) {
+        const size = parseInt(siteSettings.boutique_page_size, 10);
+        if (size > 0) PAGE_SIZE = size;
+      }
     }
 
     document.getElementById('loading').style.display = 'none';
