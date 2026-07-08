@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <title>Méga-Dracaufeu X-ex — 125/130 · Flammes Fantasmagoriques — Near Mint | Retrocarte</title>
 <meta name="description" content="Acheter Pokémon Méga-Dracaufeu X-ex 125/130 de la série Flammes Fantasmagoriques. Livraison gratuite.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -285,7 +286,7 @@
             <span>Méga-Évolution</span>
           </div>
         
-        <div class="price-block price mono"><span class="price-original">800.00 €</span><span class="price-discounted">704.00 €</span></div>
+        <div class="price-block price mono">800.00 €</div>
         <button type="button" class="cta" id="cartToggleBtn" data-id="4bef37a4-281e-402d-930c-c1786f1d5a45">Ajouter au panier</button>
       </div>
     </div></div>
@@ -379,6 +380,23 @@ function showToast(msg) {
   window._toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
+let siteSettings = {};
+
+async function loadSiteSettings() {
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/settings?select=key,value`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    rows.forEach(r => { siteSettings[r.key] = r.value; });
+
+    if (siteSettings.breadcrumb_text) {
+      document.querySelector('.breadcrumb a').textContent = siteSettings.breadcrumb_text;
+    }
+  } catch (err) {}
+}
+
 async function loadBlocks() {
   try {
     const resp = await fetch(`${SUPABASE_URL}/rest/v1/cartes?select=series_id,series_name,series_logo&status=eq.en_stock`, {
@@ -392,7 +410,9 @@ async function loadBlocks() {
       count++;
       if (c.series_id && !seen.has(c.series_id)) seen.set(c.series_id, { name: c.series_name || c.series_id, logo: c.series_logo });
     });
-    document.getElementById('sidebarFooter').innerHTML = `Stock vérifié — <b>${count} cartes</b><br>mis à jour en temps réel`;
+    const stockTemplate = siteSettings.sidebar_stock_text || 'Stock vérifié — {nombre} cartes\nmis à jour en temps réel';
+    const stockHtml = escapeHtml(stockTemplate).replace(/\{nombre\}/g, `<b>${count}</b>`).split('\n').join('<br>');
+    document.getElementById('sidebarFooter').innerHTML = stockHtml;
 
     const blockListEl = document.getElementById('blockList');
     let html = '';
@@ -614,7 +634,7 @@ function renderCard(c, discountPercent) {
 
 renderAuthActions();
 updateCartUI();
-loadBlocks();
+loadSiteSettings().then(loadBlocks);
 loadCard();
 </script>
 
