@@ -228,6 +228,16 @@
   </div>
 
   <div class="panel">
+    <label for="boutiquePageSize">Nombre de cartes par page sur la boutique</label>
+    <div class="row" style="margin-bottom:0;">
+      <input type="number" id="boutiquePageSize" min="1" max="200" step="1" value="12" style="max-width:120px;">
+      <button id="pageSizeApplyBtn">Appliquer</button>
+    </div>
+    <p class="sub" style="margin:8px 0 0;">Contrôle combien de cartes s'affichent avant de passer à la page suivante sur retrocarte.com.</p>
+    <div id="pageSizeStatus" style="font-size:13px; margin-top:8px; min-height:18px;"></div>
+  </div>
+
+  <div class="panel">
     <h2 style="font-size:16px; margin:0 0 4px;">Personnalisation du contenu</h2>
     <p class="sub" style="margin:0 0 16px;">Ces textes s'appliquent immédiatement sur la boutique, la fiche produit et le panier.</p>
 
@@ -838,6 +848,9 @@ async function loadDiscount(url, key) {
     if (map.discount_percent != null) {
       document.getElementById('discountPercent').value = map.discount_percent;
     }
+    if (map.boutique_page_size != null) {
+      document.getElementById('boutiquePageSize').value = map.boutique_page_size;
+    }
     Object.entries(TEXT_SETTING_FIELDS).forEach(([settingKey, fieldId]) => {
       if (map[settingKey] != null) {
         document.getElementById(fieldId).value = map[settingKey];
@@ -1154,6 +1167,47 @@ document.getElementById('discountApplyBtn').addEventListener('click', async () =
   } catch (err) {
     discountStatusEl.style.color = 'var(--danger)';
     discountStatusEl.textContent = 'Erreur : ' + err.message;
+  }
+});
+
+document.getElementById('pageSizeApplyBtn').addEventListener('click', async () => {
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  const statusEl = document.getElementById('pageSizeStatus');
+  const size = parseInt(document.getElementById('boutiquePageSize').value, 10);
+
+  if (!url || !key) {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = 'Renseigne l\'URL et la clé service_role Supabase.';
+    return;
+  }
+  if (isNaN(size) || size < 1 || size > 200) {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = 'Choisis un nombre entre 1 et 200.';
+    return;
+  }
+
+  statusEl.style.color = '';
+  statusEl.textContent = 'Enregistrement...';
+
+  try {
+    const resp = await fetch(`${url}/rest/v1/settings?on_conflict=key`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify([{ key: 'boutique_page_size', value: String(size) }])
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+
+    statusEl.style.color = 'var(--accent)';
+    statusEl.textContent = `✓ La boutique affichera ${size} cartes par page.`;
+  } catch (err) {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = 'Erreur : ' + err.message;
   }
 });
 
