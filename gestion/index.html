@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <title>Gestion du stock</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -224,6 +225,54 @@
     </div>
     <p class="sub" style="margin:8px 0 0;">0 = pas de remise. Au-dessus de 0, chaque carte de la boutique affiche son prix barré avec le prix remisé à côté.</p>
     <div id="discountStatus" style="font-size:13px; margin-top:8px; min-height:18px;"></div>
+  </div>
+
+  <div class="panel">
+    <h2 style="font-size:16px; margin:0 0 4px;">Personnalisation du contenu</h2>
+    <p class="sub" style="margin:0 0 16px;">Ces textes s'appliquent immédiatement sur la boutique, la fiche produit et le panier.</p>
+
+    <div style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px;">
+      <b style="font-size:13px;">Bannière — quand une remise est active</b>
+      <label class="mt">Étiquette</label>
+      <input type="text" id="txtDiscountEyebrow" placeholder="Remise en cours">
+      <label class="mt">Titre <span style="color:#8b897f; font-weight:400;">(utilise {pourcentage} pour insérer le chiffre)</span></label>
+      <input type="text" id="txtDiscountTitle" placeholder="-{pourcentage}% sur tout le stock">
+      <label class="mt">Description</label>
+      <input type="text" id="txtDiscountText" placeholder="Toutes les cartes vérifiées et notées à la main, prix déjà remisés affichés ci-dessous.">
+      <div class="row" style="margin-top:10px;">
+        <div><label>Texte du bouton</label><input type="text" id="txtDiscountCtaText" placeholder="Voir les cartes"></div>
+        <div><label>Lien du bouton</label><input type="text" id="txtDiscountCtaLink" placeholder="/ (vide = défilement vers les cartes)"></div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--line); padding-top:14px; margin-top:18px;">
+      <b style="font-size:13px;">Bannière — quand aucune remise n'est active</b>
+      <label class="mt">Étiquette</label>
+      <input type="text" id="txtNoDiscountEyebrow" placeholder="Bienvenue">
+      <label class="mt">Titre</label>
+      <input type="text" id="txtNoDiscountTitle" placeholder="Cartes Pokémon vérifiées, notées à la main">
+      <label class="mt">Description</label>
+      <input type="text" id="txtNoDiscountText" placeholder="Chaque carte du stock est contrôlée avant mise en vente : état, édition, authenticité.">
+      <div class="row" style="margin-top:10px;">
+        <div><label>Texte du bouton</label><input type="text" id="txtNoDiscountCtaText" placeholder="Voir les cartes"></div>
+        <div><label>Lien du bouton</label><input type="text" id="txtNoDiscountCtaLink" placeholder="/ (vide = défilement vers les cartes)"></div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--line); padding-top:14px; margin-top:18px;">
+      <b style="font-size:13px;">Barre latérale</b>
+      <label class="mt">Texte du stock <span style="color:#8b897f; font-weight:400;">(utilise {nombre} pour le nombre de cartes, \n pour aller à la ligne)</span></label>
+      <input type="text" id="txtSidebarStock" placeholder="Stock vérifié — {nombre} cartes\nmis à jour en temps réel">
+    </div>
+
+    <div style="border-top:1px solid var(--line); padding-top:14px; margin-top:18px;">
+      <b style="font-size:13px;">Fiche produit &amp; panier</b>
+      <label class="mt">Texte du lien retour</label>
+      <input type="text" id="txtBreadcrumb" placeholder="← Retour au catalogue">
+    </div>
+
+    <button id="textsApplyBtn" style="margin-top:18px;">Enregistrer les textes</button>
+    <div id="textsStatus" style="font-size:13px; margin-top:8px; min-height:18px;"></div>
   </div>
 
   <div class="row">
@@ -695,20 +744,83 @@ document.getElementById('printModalOverlay').addEventListener('click', (e) => {
 });
 document.getElementById('printModalGo').addEventListener('click', () => window.print());
 
+const TEXT_SETTING_FIELDS = {
+  banner_discount_eyebrow: 'txtDiscountEyebrow',
+  banner_discount_title: 'txtDiscountTitle',
+  banner_discount_text: 'txtDiscountText',
+  banner_discount_cta_text: 'txtDiscountCtaText',
+  banner_discount_cta_link: 'txtDiscountCtaLink',
+  banner_nodiscount_eyebrow: 'txtNoDiscountEyebrow',
+  banner_nodiscount_title: 'txtNoDiscountTitle',
+  banner_nodiscount_text: 'txtNoDiscountText',
+  banner_nodiscount_cta_text: 'txtNoDiscountCtaText',
+  banner_nodiscount_cta_link: 'txtNoDiscountCtaLink',
+  sidebar_stock_text: 'txtSidebarStock',
+  breadcrumb_text: 'txtBreadcrumb'
+};
+
 async function loadDiscount(url, key) {
   try {
-    const resp = await fetch(`${url}/rest/v1/settings?key=eq.discount_percent&select=value`, {
+    const resp = await fetch(`${url}/rest/v1/settings?select=key,value`, {
       headers: { apikey: key, Authorization: `Bearer ${key}` }
     });
     if (!resp.ok) return;
     const rows = await resp.json();
-    if (rows.length > 0) {
-      document.getElementById('discountPercent').value = rows[0].value;
+    const map = {};
+    rows.forEach(r => { map[r.key] = r.value; });
+
+    if (map.discount_percent != null) {
+      document.getElementById('discountPercent').value = map.discount_percent;
     }
+    Object.entries(TEXT_SETTING_FIELDS).forEach(([settingKey, fieldId]) => {
+      if (map[settingKey] != null) {
+        document.getElementById(fieldId).value = map[settingKey];
+      }
+    });
   } catch (err) {
-    console.warn('Chargement remise impossible :', err);
+    console.warn('Chargement des réglages impossible :', err);
   }
 }
+
+document.getElementById('textsApplyBtn').addEventListener('click', async () => {
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  const textsStatusEl = document.getElementById('textsStatus');
+
+  if (!url || !key) {
+    textsStatusEl.style.color = 'var(--danger)';
+    textsStatusEl.textContent = 'Renseigne l\'URL et la clé service_role Supabase.';
+    return;
+  }
+
+  const payload = Object.entries(TEXT_SETTING_FIELDS).map(([settingKey, fieldId]) => ({
+    key: settingKey,
+    value: document.getElementById(fieldId).value
+  }));
+
+  textsStatusEl.style.color = '';
+  textsStatusEl.textContent = 'Enregistrement...';
+
+  try {
+    const resp = await fetch(`${url}/rest/v1/settings?on_conflict=key`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+
+    textsStatusEl.style.color = 'var(--accent)';
+    textsStatusEl.textContent = '✓ Textes enregistrés, déjà visibles sur le site.';
+  } catch (err) {
+    textsStatusEl.style.color = 'var(--danger)';
+    textsStatusEl.textContent = 'Erreur : ' + err.message;
+  }
+});
 
 document.getElementById('discountApplyBtn').addEventListener('click', async () => {
   const url = urlInput.value.trim().replace(/\/$/, '');
