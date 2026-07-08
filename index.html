@@ -798,6 +798,18 @@ async function logout() {
 }
 
 renderAuthActions();
+
+const initQ = new URLSearchParams(window.location.search).get('q');
+const initSeries = new URLSearchParams(window.location.search).get('series');
+const initNav = new URLSearchParams(window.location.search).get('nav');
+if (initQ) document.getElementById('search').value = initQ;
+if (initSeries) activeSeries = initSeries;
+if (initNav === 'favorites') {
+  activeNav = 'favorites';
+  document.querySelectorAll('.nav-item[data-nav]').forEach(i => i.classList.toggle('active', i.dataset.nav === 'favorites'));
+}
+if (initQ || initSeries || initNav) window.history.replaceState({}, '', window.location.pathname);
+
 loadCards();
 </script>
 
