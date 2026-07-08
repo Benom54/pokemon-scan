@@ -153,14 +153,8 @@
   .rarity-icon { width: 11px; height: 11px; flex-shrink: 0; }
 
   .photo-frame { position: relative; border-radius: 10px; overflow: hidden; }
-  .seal {
-    position: absolute; bottom: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%;
-    background: conic-gradient(from 0deg, #e8c583, #ffffff, #4fa47d, #c9607a, #e8c583);
-    animation: seal-spin 5s linear infinite; box-shadow: 0 0 8px rgba(232,197,131,0.5);
-    display: flex; align-items: center; justify-content: center; z-index: 2;
-  }
-  .seal::after { content: ''; width: 17px; height: 17px; border-radius: 50%; background: var(--surface-raised); }
-  @keyframes seal-spin { to { transform: rotate(360deg); } }
+  /* sceau holographique retiré */
+  /* keyframe sceau retiré */
 
   .card-panel.rare-halo { animation: halo-pulse 2.6s ease-in-out infinite; }
   @keyframes halo-pulse {
@@ -561,7 +555,6 @@ function renderCard(c, discountPercent) {
 
   const mainFrame = document.getElementById('mainPhotoFrame');
   if (mainFrame) {
-    if (!isSoldOut && isRare) mainFrame.insertAdjacentHTML('beforeend', '<div class="seal"></div>');
     mainFrame.insertAdjacentHTML('beforeend', '<div class="sweep-once"></div>');
   }
 
