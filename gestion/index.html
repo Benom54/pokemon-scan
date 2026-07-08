@@ -282,6 +282,12 @@
       <option value="vendue">Vendues uniquement</option>
     </select>
     <input type="text" id="search" placeholder="Chercher par nom...">
+    <select id="pageSizeSelect" style="max-width:170px;">
+      <option value="10">10 par page</option>
+      <option value="20">20 par page</option>
+      <option value="50">50 par page</option>
+      <option value="100">100 par page</option>
+    </select>
     <button class="ghost" id="refreshBtn">Actualiser</button>
   </div>
 
@@ -488,7 +494,7 @@ async function loadCards() {
   }
 }
 
-const PAGE_SIZE = 10;
+let PAGE_SIZE = parseInt(localStorage.getItem('pokemon_tool_page_size') || '10', 10);
 let currentPage = 1;
 
 function render() {
@@ -1154,6 +1160,13 @@ document.getElementById('discountApplyBtn').addEventListener('click', async () =
 document.getElementById('refreshBtn').addEventListener('click', loadCards);
 document.getElementById('filterStatus').addEventListener('change', () => { currentPage = 1; render(); });
 document.getElementById('search').addEventListener('input', () => { currentPage = 1; render(); });
+document.getElementById('pageSizeSelect').value = String(PAGE_SIZE);
+document.getElementById('pageSizeSelect').addEventListener('change', (e) => {
+  PAGE_SIZE = parseInt(e.target.value, 10);
+  localStorage.setItem('pokemon_tool_page_size', String(PAGE_SIZE));
+  currentPage = 1;
+  render();
+});
 
 // Charge automatiquement si les identifiants sont déjà mémorisés
 if (urlInput.value && keyInput.value) {
