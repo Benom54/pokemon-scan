@@ -40,12 +40,14 @@
   }
   label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 6px; }
   label.mt { margin-top: 14px; }
-  input[type="text"], input[type="password"], select {
+  input[type="text"], input[type="password"], input[type="number"], select {
     width: 100%;
     padding: 9px 11px;
     border: 1px solid var(--line);
     border-radius: 8px;
     font-size: 14px;
+    background: var(--card);
+    color: var(--ink);
   }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
   .row select { width: auto; min-width: 160px; }
@@ -653,10 +655,8 @@ function renderPrintLabel(card) {
   qrDiv.style.width = qrSizePx + 'px';
   qrDiv.style.height = qrSizePx + 'px';
 
-  // URL réelle de la page produit (dossier carte-pokemon/ pour une adresse sans .html)
-  const qrUrl = card.slug
-    ? `/carte-pokemon/?slug=${encodeURIComponent(card.slug)}`
-    : `/carte-pokemon/?id=${encodeURIComponent(card.id)}`;
+  // URL réelle de la page produit statique (générée automatiquement par carte)
+  const qrUrl = `/carte-pokemon/${encodeURIComponent(card.slug || 'id-' + card.id)}/`;
   new QRCode(qrDiv, { text: qrUrl, width: qrSizePx, height: qrSizePx, correctLevel: QRCode.CorrectLevel.L });
 
   requestAnimationFrame(() => {
