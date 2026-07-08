@@ -669,7 +669,7 @@ function render() {
     } else { priceHtml = 'Sur demande'; priceForEmail = 'à définir'; }
 
     const numberSet = [c.card_number, c.set_name].filter(Boolean).join(' · ');
-    const productUrl = c.slug ? `/carte-pokemon/?slug=${encodeURIComponent(c.slug)}` : `/carte-pokemon/?id=${encodeURIComponent(c.id)}`;
+    const productUrl = `/carte-pokemon/${encodeURIComponent(c.slug || 'id-' + c.id)}/`;
     const isSoldOut = c.status === 'vendue';
     const inCart = cart.has(c.id);
     const isRare = c.holo || c.graded || c.first_edition;
