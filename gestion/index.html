@@ -289,6 +289,14 @@
   <div id="empty" class="empty" style="display:none;">Aucune carte ne correspond.</div>
   <div id="list" class="list"></div>
   <div id="pagination" class="pagination"></div>
+
+  <div class="panel" style="margin-top:32px;">
+    <h2 style="font-size:16px; margin:0 0 4px;">Demandes de rachat de cartes</h2>
+    <p class="sub" style="margin:0 0 16px;">Envoyées depuis le formulaire de la page /rachat-de-cartes-pokemon/.</p>
+    <div id="leadsStatus" style="font-size:13px; margin-bottom:10px; min-height:18px;"></div>
+    <div id="leadsEmpty" class="empty" style="display:none; padding:20px 0;">Aucune demande pour le moment.</div>
+    <div id="leadsList" class="list"></div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
@@ -390,6 +398,7 @@ const emptyEl = document.getElementById('empty');
 
 let allCards = [];
 let pendingDeleteId = null;
+let pendingDeleteType = 'carte';
 
 try {
   const savedUrl = localStorage.getItem('pokemon_tool_supabase_url');
@@ -430,6 +439,7 @@ async function loadCards() {
   emptyEl.style.display = 'none';
 
   loadDiscount(url, key);
+  loadLeads(url, key);
 
   try {
     const resp = await fetch(`${url}/rest/v1/cartes?select=*&order=created_at.desc`, {
@@ -518,10 +528,12 @@ function renderPagination(totalPages, totalCount) {
   document.getElementById('pageNext')?.addEventListener('click', () => { currentPage++; render(); });
 }
 
-function openDeleteModal(id, name) {
+function openDeleteModal(id, name, type) {
   pendingDeleteId = id;
-  document.getElementById('modalText').textContent =
-    `"${name}" sera définitivement supprimée de ta base. Cette action est irréversible (les photos déjà hébergées ne sont pas effacées automatiquement).`;
+  pendingDeleteType = type || 'carte';
+  document.getElementById('modalText').textContent = pendingDeleteType === 'lead'
+    ? `La demande de "${name}" sera définitivement supprimée. Cette action est irréversible.`
+    : `"${name}" sera définitivement supprimée de ta base. Cette action est irréversible (les photos déjà hébergées ne sont pas effacées automatiquement).`;
   document.getElementById('modalOverlay').classList.add('open');
 }
 
@@ -535,12 +547,15 @@ document.getElementById('modalConfirm').addEventListener('click', async () => {
   const url = urlInput.value.trim().replace(/\/$/, '');
   const key = keyInput.value.trim();
   const id = pendingDeleteId;
+  const type = pendingDeleteType;
 
   document.getElementById('modalOverlay').classList.remove('open');
-  setStatus('Suppression en cours...', '');
+  setStatus(type === 'lead' ? '' : 'Suppression en cours...', '');
+
+  const table = type === 'lead' ? 'rachat_leads' : 'cartes';
 
   try {
-    const resp = await fetch(`${url}/rest/v1/cartes?id=eq.${id}`, {
+    const resp = await fetch(`${url}/rest/v1/${table}?id=eq.${id}`, {
       method: 'DELETE',
       headers: {
         apikey: key,
@@ -550,11 +565,18 @@ document.getElementById('modalConfirm').addEventListener('click', async () => {
     });
     if (!resp.ok) throw new Error(await resp.text());
 
-    allCards = allCards.filter(c => c.id !== id);
-    render();
-    setStatus('✓ Carte supprimée définitivement.', 'ok');
+    if (type === 'lead') {
+      allLeads = allLeads.filter(l => l.id !== id);
+      renderLeads();
+      setLeadsStatus('✓ Demande supprimée.', 'ok');
+    } else {
+      allCards = allCards.filter(c => c.id !== id);
+      render();
+      setStatus('✓ Carte supprimée définitivement.', 'ok');
+    }
   } catch (err) {
-    setStatus('Erreur lors de la suppression : ' + err.message, 'error');
+    if (type === 'lead') setLeadsStatus('Erreur lors de la suppression : ' + err.message, 'error');
+    else setStatus('Erreur lors de la suppression : ' + err.message, 'error');
   }
   pendingDeleteId = null;
 });
@@ -779,6 +801,93 @@ async function loadDiscount(url, key) {
     });
   } catch (err) {
     console.warn('Chargement des réglages impossible :', err);
+  }
+}
+
+let allLeads = [];
+
+function setLeadsStatus(text, kind) {
+  const el = document.getElementById('leadsStatus');
+  el.textContent = text;
+  el.className = kind || '';
+}
+
+async function loadLeads(url, key) {
+  try {
+    const resp = await fetch(`${url}/rest/v1/rachat_leads?select=*&order=created_at.desc`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` }
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    allLeads = await resp.json();
+    renderLeads();
+  } catch (err) {
+    setLeadsStatus('Erreur de chargement des demandes : ' + err.message, 'error');
+  }
+}
+
+function renderLeads() {
+  const listEl = document.getElementById('leadsList');
+  const emptyEl = document.getElementById('leadsEmpty');
+
+  if (allLeads.length === 0) {
+    listEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  listEl.innerHTML = allLeads.map(l => {
+    const date = l.created_at ? new Date(l.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+    const isTraite = l.status === 'traite';
+    return `
+      <div class="item" style="align-items:flex-start;">
+        <div class="item-info">
+          <div class="item-name">${escapeHtml(l.nom || 'Sans nom')}<span class="badge ${isTraite ? 'en_stock' : 'vendue'}">${isTraite ? 'Traité' : 'Nouveau'}</span></div>
+          <div class="item-meta">${escapeHtml(l.email || '')}${l.telephone ? ' · ' + escapeHtml(l.telephone) : ''} · ${date}</div>
+          ${l.nombre_cartes ? `<div class="item-meta">Nombre de cartes : ${escapeHtml(l.nombre_cartes)}</div>` : ''}
+          ${l.message ? `<div class="item-meta" style="white-space:pre-wrap; margin-top:4px;">${escapeHtml(l.message)}</div>` : ''}
+        </div>
+        <div class="item-actions">
+          <a class="ghost" style="display:inline-block; text-align:center; text-decoration:none;" href="mailto:${escapeHtml(l.email || '')}">Répondre</a>
+          <button class="ghost" data-lead-toggle="${l.id}" data-current="${l.status || 'nouveau'}">${isTraite ? 'Marquer nouveau' : 'Marquer traité'}</button>
+          <button class="danger" data-lead-delete="${l.id}" data-name="${escapeHtml(l.nom || 'cette demande')}">Supprimer</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  listEl.querySelectorAll('[data-lead-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => toggleLeadStatus(btn.dataset.leadToggle, btn.dataset.current));
+  });
+  listEl.querySelectorAll('[data-lead-delete]').forEach(btn => {
+    btn.addEventListener('click', () => openDeleteModal(btn.dataset.leadDelete, btn.dataset.name, 'lead'));
+  });
+}
+
+async function toggleLeadStatus(id, currentStatus) {
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  const newStatus = currentStatus === 'traite' ? 'nouveau' : 'traite';
+
+  try {
+    const resp = await fetch(`${url}/rest/v1/rachat_leads?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify({ status: newStatus })
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+
+    const lead = allLeads.find(l => l.id === id);
+    if (lead) lead.status = newStatus;
+    renderLeads();
+    setLeadsStatus('✓ Statut mis à jour.', 'ok');
+  } catch (err) {
+    setLeadsStatus('Erreur : ' + err.message, 'error');
   }
 }
 
