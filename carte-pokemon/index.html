@@ -505,6 +505,9 @@ function renderCard(c, discountPercent) {
   const contentEl = document.getElementById('content');
   const numberSet = [c.card_number, c.set_name].filter(Boolean).join(' · ');
 
+  const titleParts = [c.name, numberSet, c.condition].filter(Boolean);
+  document.title = `${titleParts.join(' — ')} | Retrocarte`;
+
   let priceHtml, priceForEmail;
   if (c.price != null) {
     if (discountPercent > 0) {
