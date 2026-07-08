@@ -205,6 +205,19 @@ function renderAuthActions() {
   }
 }
 
+let siteSettings = {};
+
+async function loadSiteSettings() {
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/settings?select=key,value`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    rows.forEach(r => { siteSettings[r.key] = r.value; });
+  } catch (err) {}
+}
+
 async function loadBlocks() {
   try {
     const resp = await fetch(`${SUPABASE_URL}/rest/v1/cartes?select=series_id,series_name,series_logo&status=eq.en_stock`, {
@@ -215,7 +228,8 @@ async function loadBlocks() {
     const seen = new Map();
     let count = 0;
     rows.forEach(c => { count++; if (c.series_id && !seen.has(c.series_id)) seen.set(c.series_id, { name: c.series_name || c.series_id, logo: c.series_logo }); });
-    document.getElementById('sidebarFooter').innerHTML = `Stock vérifié — <b>${count} cartes</b><br>mis à jour en temps réel`;
+    const stockTemplate = siteSettings.sidebar_stock_text || 'Stock vérifié — {nombre} cartes\nmis à jour en temps réel';
+    document.getElementById('sidebarFooter').innerHTML = escapeHtml(stockTemplate).replace(/\{nombre\}/g, `<b>${count}</b>`).split('\n').join('<br>');
     const blockListEl = document.getElementById('blockList');
     let html = '';
     seen.forEach((info, id) => {
@@ -344,7 +358,7 @@ function renderCart(cards) {
 
 renderAuthActions();
 updateCartUI();
-loadBlocks();
+loadSiteSettings().then(loadBlocks);
 loadCart();
 </script>
 
