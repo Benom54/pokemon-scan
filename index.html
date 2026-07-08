@@ -523,27 +523,30 @@ function updateCartUI() {
   if (badge) badge.textContent = cart.size;
 }
 
+let siteSettings = {};
+
 async function loadCards() {
   try {
-    const [cardsResp, discountResp] = await Promise.all([
+    const [cardsResp, settingsResp] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/cartes?select=*&order=created_at.desc`, {
         headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
       }),
-      fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.discount_percent&select=value`, {
+      fetch(`${SUPABASE_URL}/rest/v1/settings?select=key,value`, {
         headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
       })
     ]);
     if (!cardsResp.ok) throw new Error(await cardsResp.text());
     allCards = await cardsResp.json();
 
-    if (discountResp.ok) {
-      const rows = await discountResp.json();
-      if (rows.length > 0) discountPercent = parseInt(rows[0].value, 10) || 0;
+    if (settingsResp.ok) {
+      const rows = await settingsResp.json();
+      rows.forEach(r => { siteSettings[r.key] = r.value; });
+      if (siteSettings.discount_percent != null) discountPercent = parseInt(siteSettings.discount_percent, 10) || 0;
     }
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('navAllCount').textContent = allCards.length;
-    document.getElementById('sidebarStockCount').textContent = `${allCards.length} cartes`;
+    updateSidebarStockText(allCards.length);
     updateBanner();
     renderSeriesFilters();
     render();
@@ -552,18 +555,30 @@ async function loadCards() {
   }
 }
 
+function updateSidebarStockText(count) {
+  const rawTemplate = siteSettings.sidebar_stock_text || 'Stock vérifié — {nombre} cartes\nmis à jour en temps réel';
+  const escaped = escapeHtml(rawTemplate).replace(/\{nombre\}/g, `<b>${count}</b>`);
+  document.getElementById('sidebarStockCount').parentElement.innerHTML = escaped.split('\n').join('<br>');
+}
+
 function updateBanner() {
   const eyebrow = document.getElementById('bannerEyebrow');
   const title = document.getElementById('bannerTitle');
   const text = document.getElementById('bannerText');
+  const cta = document.getElementById('bannerCta');
+
   if (discountPercent > 0) {
-    eyebrow.textContent = 'Remise en cours';
-    title.textContent = `-${discountPercent}% sur tout le stock`;
-    text.textContent = 'Toutes les cartes vérifiées et notées à la main, prix déjà remisés affichés ci-dessous.';
+    eyebrow.textContent = siteSettings.banner_discount_eyebrow || 'Remise en cours';
+    title.textContent = (siteSettings.banner_discount_title || '-{pourcentage}% sur tout le stock').replace(/\{pourcentage\}/g, discountPercent);
+    text.textContent = siteSettings.banner_discount_text || 'Toutes les cartes vérifiées et notées à la main, prix déjà remisés affichés ci-dessous.';
+    cta.textContent = siteSettings.banner_discount_cta_text || 'Voir les cartes';
+    cta.dataset.link = siteSettings.banner_discount_cta_link || '';
   } else {
-    eyebrow.textContent = 'Bienvenue';
-    title.textContent = 'Cartes Pokémon vérifiées, notées à la main';
-    text.textContent = 'Chaque carte du stock est contrôlée avant mise en vente : état, édition, authenticité.';
+    eyebrow.textContent = siteSettings.banner_nodiscount_eyebrow || 'Bienvenue';
+    title.textContent = siteSettings.banner_nodiscount_title || 'Cartes Pokémon vérifiées, notées à la main';
+    text.textContent = siteSettings.banner_nodiscount_text || 'Chaque carte du stock est contrôlée avant mise en vente : état, édition, authenticité.';
+    cta.textContent = siteSettings.banner_nodiscount_cta_text || 'Voir les cartes';
+    cta.dataset.link = siteSettings.banner_nodiscount_cta_link || '';
   }
 }
 
@@ -839,7 +854,11 @@ document.getElementById('listViewBtn').addEventListener('click', () => {
   document.getElementById('gridViewBtn').classList.remove('active');
 });
 
-document.getElementById('bannerCta').addEventListener('click', () => window.scrollTo({ top: document.querySelector('main').offsetTop - 80, behavior: 'smooth' }));
+document.getElementById('bannerCta').addEventListener('click', (e) => {
+  const link = e.currentTarget.dataset.link;
+  if (link) window.location.href = link;
+  else window.scrollTo({ top: document.querySelector('main').offsetTop - 80, behavior: 'smooth' });
+});
 
 /* ---------- filter drawer ---------- */
 document.getElementById('filterBtn').addEventListener('click', () => document.getElementById('drawerOverlay').classList.add('open'));
