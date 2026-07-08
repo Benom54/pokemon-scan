@@ -30,11 +30,11 @@ function withExt(url) {
 }
 
 async function main() {
-  const [cardsResp, discountResp] = await Promise.all([
+  const [cardsResp, settingsResp] = await Promise.all([
     fetch(`${SUPABASE_URL}/rest/v1/cartes?select=*`, {
       headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
     }),
-    fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.discount_percent&select=value`, {
+    fetch(`${SUPABASE_URL}/rest/v1/settings?select=key,value`, {
       headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
     })
   ]);
@@ -43,9 +43,13 @@ async function main() {
   const cards = await cardsResp.json();
 
   let discountPercent = 0;
-  if (discountResp.ok) {
-    const rows = await discountResp.json();
-    if (rows.length > 0) discountPercent = parseInt(rows[0].value, 10) || 0;
+  let breadcrumbText = '← Retour au catalogue';
+  if (settingsResp.ok) {
+    const rows = await settingsResp.json();
+    const settingsMap = {};
+    rows.forEach(r => { settingsMap[r.key] = r.value; });
+    if (settingsMap.discount_percent != null) discountPercent = parseInt(settingsMap.discount_percent, 10) || 0;
+    if (settingsMap.breadcrumb_text) breadcrumbText = settingsMap.breadcrumb_text;
   }
 
   const template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
@@ -127,6 +131,10 @@ async function main() {
       '<h1 id="pageH1">Fiche carte Pokémon — Retrocarte</h1>',
       `<h1 id="pageH1">${escapeHtml(titleParts.join(' — '))}</h1>`
     );
+    html = html.replace(
+      '<div class="breadcrumb"><a href="/">← Retour au catalogue</a></div>',
+      `<div class="breadcrumb"><a href="/">${escapeHtml(breadcrumbText)}</a></div>`
+    );
     html = html.split(loadingBlock).join(cardPanelHtml);
 
     const outDir = path.join(OUTPUT_ROOT, folderName);
@@ -136,6 +144,46 @@ async function main() {
   }
 
   console.log(`${generated} page(s) carte générée(s) dans carte-pokemon/{slug}/`);
+
+  // ============================================================
+  // Sitemap : accueil, page de rachat, et toutes les fiches carte
+  // ============================================================
+  const siteRoot = process.cwd();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const staticUrls = [
+    { loc: 'https://retrocarte.com/', priority: '1.0' },
+    { loc: 'https://retrocarte.com/rachat-de-cartes-pokemon/', priority: '0.8' }
+  ];
+  const cardUrls = [...slugsSeen].map(slug => ({
+    loc: `https://retrocarte.com/carte-pokemon/${slug}/`,
+    priority: '0.6'
+  }));
+
+  const allUrls = [...staticUrls, ...cardUrls];
+  const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${allUrls.map(u => `  <url>
+    <loc>${u.loc}</loc>
+    <lastmod>${today}</lastmod>
+    <priority>${u.priority}</priority>
+  </url>`).join('\n')}
+</urlset>
+`;
+  fs.writeFileSync(path.join(siteRoot, 'sitemap.xml'), sitemapXml, 'utf8');
+
+  // robots.txt : autorise l'exploration publique, bloque les outils d'administration
+  const robotsTxt = `User-agent: *
+Disallow: /scan/
+Disallow: /gestion/
+Disallow: /panier/
+Allow: /
+
+Sitemap: https://retrocarte.com/sitemap.xml
+`;
+  fs.writeFileSync(path.join(siteRoot, 'robots.txt'), robotsTxt, 'utf8');
+
+  console.log(`sitemap.xml généré avec ${allUrls.length} URL(s), robots.txt mis à jour.`);
 }
 
 main().catch(err => {
