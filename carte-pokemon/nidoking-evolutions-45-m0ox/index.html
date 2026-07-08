@@ -467,15 +467,31 @@ async function logout() {
   showToast('Déconnecté.');
 }
 
+function getPathSlugOrId() {
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  const idx = parts.indexOf('carte-pokemon');
+  if (idx !== -1 && parts[idx + 1]) return parts[idx + 1];
+  return null;
+}
+
 async function loadCard() {
   const contentEl = document.getElementById('content');
-  const slug = getParam('slug');
-  const id = getParam('id');
+  let slug = getParam('slug');
+  let id = getParam('id');
 
   // Ancien lien avec ?slug=... -> on renvoie vers la vraie page statique /carte-pokemon/{slug}/
   if (slug) {
     window.location.replace(`/carte-pokemon/${encodeURIComponent(slug)}/`);
     return;
+  }
+
+  // Page statique générée : le slug (ou "id-xxx") est dans le chemin de l'URL, pas dans un ?paramètre
+  if (!id) {
+    const pathValue = getPathSlugOrId();
+    if (pathValue) {
+      if (pathValue.startsWith('id-')) id = pathValue.slice(3);
+      else slug = pathValue;
+    }
   }
 
   if (!slug && !id) {
