@@ -235,7 +235,7 @@
   @keyframes seal-spin { to { transform: rotate(360deg); } }
 
   /* halo carte rare (holo / gradée / 1ere edition) */
-  .slab.rare-halo { animation: halo-pulse 2.6s ease-in-out infinite; }
+  .slab.rare-halo { animation: rise 0.4s ease forwards, halo-pulse 2.6s ease-in-out infinite; }
   @keyframes halo-pulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(232,197,131,0.3); border-color: var(--line-bright); }
     50% { box-shadow: 0 0 14px 2px rgba(232,197,131,0.3); border-color: var(--brass); }
