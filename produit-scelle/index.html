@@ -497,7 +497,7 @@ async function logout() {
 
 function getPathSlugOrId() {
   const parts = window.location.pathname.split('/').filter(Boolean);
-  const idx = parts.indexOf('carte-pokemon');
+  const idx = parts.indexOf('produit-scelle');
   if (idx !== -1 && parts[idx + 1]) return parts[idx + 1];
   return null;
 }
