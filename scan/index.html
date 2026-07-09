@@ -623,24 +623,32 @@ async function lookupCard(info) {
   const lang = LANG_CODES[document.getElementById('cardLang').value] || 'fr';
   const cardNumber = (info.number || '').split('/')[0].trim();
   let cards = [];
+  let fallbackCards = []; // premier resultat non-vide trouvé, au cas ou aucune variante ne matche le numero
   const variants = info.name ? nameVariants(info.name) : [];
 
+  // Essaie chaque variante de nom (espace/tiret/majuscule/suffixe) — continue tant qu'aucune
+  // ne donne un resultat correspondant au numero lu par l'IA, au lieu de s'arreter a la premiere
+  // variante non-vide (qui peut etre une carte homonyme d'une autre epoque, avec un numero different).
   if (info.name && cardNumber) {
     for (const variant of variants) {
       let params = `name=${encodeURIComponent(variant)}&localId=eq:${encodeURIComponent(cardNumber)}`;
       let results = await fetchTcgdex(lang, params);
-      cards = results.filter(c => nameMatches(c.name, info.name));
-      if (cards.length > 0) break;
+      let filtered = results.filter(c => nameMatches(c.name, info.name));
+      if (filtered.length > 0 && fallbackCards.length === 0) fallbackCards = filtered;
+      if (filtered.some(c => String(c.localId) === cardNumber)) { cards = filtered; break; }
     }
   }
 
   if (cards.length === 0 && info.name) {
     for (const variant of variants) {
       let results = await fetchTcgdex(lang, `name=${encodeURIComponent(variant)}`);
-      cards = results.filter(c => nameMatches(c.name, info.name));
-      if (cards.length > 0) break;
+      let filtered = results.filter(c => nameMatches(c.name, info.name));
+      if (filtered.length > 0 && fallbackCards.length === 0) fallbackCards = filtered;
+      if (cardNumber ? filtered.some(c => String(c.localId) === cardNumber) : filtered.length > 0) { cards = filtered; break; }
     }
   }
+
+  if (cards.length === 0) cards = fallbackCards;
 
   if (cards.length === 0) {
     setStatus(`L'IA a lu "${info.name}" (${info.set_hint || 'set inconnu'} ${info.number || ''}) mais aucune correspondance trouvée dans TCGdex. Vérifie la photo, utilise la recherche manuelle ci-dessous, ou vérifie la langue sélectionnée.`, true);
