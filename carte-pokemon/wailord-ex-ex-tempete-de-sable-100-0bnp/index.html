@@ -325,7 +325,7 @@
         
         
     <div class="card-description">
-      <p>Découvre la sublime carte Wailord ex, Pokémon de la série EX Tempête de sable, actuellement disponible.</p>
+      <p>Découvre la sublime carte Wailord ex, Pokémon de la série EX Tempête de sable, actuellement disponible. ✅ Carte 100 % authentique, soigneusement vérifiée avant expédition. 📦 Protection premium pour garantir une livraison en parfait état. 🚚 Expédition rapide et sécurisée avec suivi. ⭐ Achetez en toute confiance et ajoutez dès aujourd&#39;hui cette pièce d&#39;exception à votre collection Pokémon.</p>
       
     </div>
         <div class="price-block price mono"><span class="price-original">69.54 €</span><span class="price-discounted">63.98 €</span></div>
@@ -628,7 +628,7 @@ function renderCard(c, discountPercent) {
     .replace(/\{etat\}/g, c.condition || '');
   const descriptionHtml = `
     <div class="card-description">
-      <p>${escapeHtml(autoDescription)}</p>
+      <p>${escapeHtml(autoDescription).replace(/\n/g, '<br>')}</p>
       ${c.tcgdex_description ? `<p>${escapeHtml(c.tcgdex_description)}</p>` : ''}
     </div>
   `;
