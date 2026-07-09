@@ -44,14 +44,24 @@
 
   .app { display: flex; min-height: 100vh; }
 
+  .sidebar-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 45;
+  }
+  .sidebar-overlay.open { display: block; }
+  .sidebar-close { display: none; }
+
   /* ---------- sidebar ---------- */
   .sidebar {
     width: 216px; flex-shrink: 0; background: var(--ink-2); border-right: 1px solid var(--line);
     padding: 18px 14px; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
   }
-  .brand { display: flex; align-items: center; gap: 9px; padding: 0 8px; margin-bottom: 22px; }
+  .sidebar-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+  .brand { display: flex; align-items: center; gap: 9px; padding: 0 8px; }
   .brand-mark { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--brass), var(--emerald)); display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; color: var(--ink); flex-shrink: 0; }
   .brand-name { font-size: 16px; letter-spacing: -0.01em; }
+
+  .brand-mini-topbar { display: none; }
+  .search-toggle-btn { display: none; }
 
   .nav-group { margin-bottom: 18px; }
   .nav-label { font-size: 11px; font-weight: 700; color: var(--muted-dim); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 8px; margin-bottom: 6px; }
@@ -320,16 +330,52 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
   @media (max-width: 900px) {
-    .sidebar { position: fixed; left: -220px; z-index: 50; transition: left 0.2s; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+    .sidebar { position: fixed; left: -240px; z-index: 51; transition: left 0.2s; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
     .sidebar.open { left: 0; }
     .mobile-toggle { display: flex; width: 34px; height: 34px; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--text); cursor: pointer; flex-shrink: 0; }
+    .sidebar-close {
+      display: flex; width: 30px; height: 30px; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); cursor: pointer; flex-shrink: 0;
+    }
     .grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .banner { flex-direction: column; align-items: flex-start; padding: 20px; }
     .banner h1 { font-size: 20px; }
     .banner-wrap, .chip-row, main { padding-left: 16px; padding-right: 16px; }
-    .topbar { padding: 10px 16px; flex-wrap: wrap; }
-    .search-field { max-width: none; order: 1; flex-basis: 100%; }
-    .auth-actions { margin-left: 0; }
+
+    .topbar { padding: 10px 12px; position: relative; gap: 6px; }
+    .brand-mini-topbar { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .brand-mini-topbar .mark { width: 28px; height: 28px; border-radius: 7px; background: linear-gradient(135deg, var(--brass), var(--emerald)); display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 11px; color: var(--ink); }
+
+    .search-toggle-btn {
+      display: flex; width: 34px; height: 34px; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--text); cursor: pointer; flex-shrink: 0;
+    }
+    .search-field {
+      display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--ink);
+      border-bottom: 1px solid var(--line); padding: 10px 12px; z-index: 25; max-width: none;
+    }
+    .search-field.open { display: block; }
+    .search-field svg { display: none; }
+    .search-field input { width: 100%; padding-left: 12px; }
+
+    .sort-select, .filter-btn, .view-toggle { display: none !important; }
+
+    .toolbar-secondary {
+      display: flex; gap: 8px; padding: 10px 12px; overflow-x: auto; border-bottom: 1px solid var(--line);
+    }
+    .toolbar-secondary::-webkit-scrollbar { height: 0; }
+    .sort-select-mobile, .filter-btn-mobile {
+      background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--text);
+      padding: 7px 12px; font-size: 12px; white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; gap: 5px;
+    }
+    .view-toggle-mobile { display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+    .view-toggle-mobile button { background: none; border: none; color: var(--muted-dim); padding: 7px 9px; cursor: pointer; display: flex; }
+    .view-toggle-mobile button.active { background: var(--surface-raised); color: var(--brass-bright); }
+
+    .auth-actions { margin-left: auto; }
+  }
+  @media (min-width: 901px) {
+    .toolbar-secondary { display: none; }
   }
   @media (max-width: 520px) {
     .grid { grid-template-columns: repeat(2, 1fr); }
@@ -339,11 +385,17 @@
 </head>
 <body>
 
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="app">
   <aside class="sidebar" id="sidebar">
-    <div class="brand">
-      <div class="brand-mark">RC</div>
-      <span class="brand-name wordmark">Retrocarte</span>
+    <div class="sidebar-header-row">
+      <div class="brand">
+        <div class="brand-mark">RC</div>
+        <span class="brand-name wordmark">Retrocarte</span>
+      </div>
+      <div class="sidebar-close" id="sidebarClose">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </div>
     </div>
 
     <div class="nav-group">
@@ -383,9 +435,15 @@
       <div class="mobile-toggle" id="mobileToggle">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </div>
-      <div class="search-field">
+      <div class="brand-mini-topbar">
+        <div class="mark">RC</div>
+      </div>
+      <div class="search-field" id="searchFieldContainer">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         <input type="text" id="search" placeholder="Chercher une carte...">
+      </div>
+      <div class="search-toggle-btn" id="searchToggleBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       </div>
       <select class="sort-select" id="sort">
         <option value="recent">Plus récentes</option>
@@ -407,6 +465,23 @@
         <span class="count" id="cartCount">0</span>
       </a>
       <div class="auth-actions" id="authActions"></div>
+    </div>
+
+    <div class="toolbar-secondary">
+      <select class="sort-select-mobile" id="sortMobile">
+        <option value="recent">Plus récentes</option>
+        <option value="price_asc">Prix croissant</option>
+        <option value="price_desc">Prix décroissant</option>
+        <option value="name">Nom (A → Z)</option>
+      </select>
+      <div class="filter-btn-mobile" id="filterBtnMobile">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+        Filtres
+      </div>
+      <div class="view-toggle-mobile">
+        <button class="active" id="gridViewBtnMobile"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>
+        <button id="listViewBtnMobile"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="4" rx="1.5"/><rect x="3" y="10" width="18" height="4" rx="1.5"/><rect x="3" y="16" width="18" height="4" rx="1.5"/></svg></button>
+      </div>
     </div>
 
     <div class="banner-wrap">
@@ -978,21 +1053,49 @@ document.getElementById('search').addEventListener('input', () => {
   else render();
 });
 document.getElementById('sort').addEventListener('change', () => { currentPage = 1; render(); });
+document.getElementById('sortMobile').addEventListener('change', (e) => {
+  document.getElementById('sort').value = e.target.value;
+  currentPage = 1; render();
+});
 
-document.getElementById('mobileToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+/* ---------- menu mobile (ouverture/fermeture) ---------- */
+function openMobileSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+document.getElementById('mobileToggle').addEventListener('click', openMobileSidebar);
+document.getElementById('sidebarClose').addEventListener('click', closeMobileSidebar);
+document.getElementById('sidebarOverlay').addEventListener('click', closeMobileSidebar);
 
-document.getElementById('gridViewBtn').addEventListener('click', () => {
+/* ---------- recherche repliable (mobile) ---------- */
+document.getElementById('searchToggleBtn').addEventListener('click', () => {
+  document.getElementById('searchFieldContainer').classList.toggle('open');
+});
+
+function setGridView() {
   viewMode = 'grid';
   document.getElementById('grid').classList.remove('list-view');
   document.getElementById('gridViewBtn').classList.add('active');
   document.getElementById('listViewBtn').classList.remove('active');
-});
-document.getElementById('listViewBtn').addEventListener('click', () => {
+  document.getElementById('gridViewBtnMobile').classList.add('active');
+  document.getElementById('listViewBtnMobile').classList.remove('active');
+}
+function setListView() {
   viewMode = 'list';
   document.getElementById('grid').classList.add('list-view');
   document.getElementById('listViewBtn').classList.add('active');
   document.getElementById('gridViewBtn').classList.remove('active');
-});
+  document.getElementById('listViewBtnMobile').classList.add('active');
+  document.getElementById('gridViewBtnMobile').classList.remove('active');
+}
+document.getElementById('gridViewBtn').addEventListener('click', setGridView);
+document.getElementById('listViewBtn').addEventListener('click', setListView);
+document.getElementById('gridViewBtnMobile').addEventListener('click', setGridView);
+document.getElementById('listViewBtnMobile').addEventListener('click', setListView);
 
 document.getElementById('bannerCta').addEventListener('click', (e) => {
   const link = e.currentTarget.dataset.link;
@@ -1002,6 +1105,7 @@ document.getElementById('bannerCta').addEventListener('click', (e) => {
 
 /* ---------- filter drawer ---------- */
 document.getElementById('filterBtn').addEventListener('click', () => document.getElementById('drawerOverlay').classList.add('open'));
+document.getElementById('filterBtnMobile').addEventListener('click', () => document.getElementById('drawerOverlay').classList.add('open'));
 document.getElementById('drawerOverlay').addEventListener('click', e => { if (e.target.id === 'drawerOverlay') e.currentTarget.classList.remove('open'); });
 document.getElementById('drawerApply').addEventListener('click', () => {
   document.getElementById('drawerOverlay').classList.remove('open');
