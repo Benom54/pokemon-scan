@@ -875,8 +875,11 @@ document.querySelectorAll('.nav-item[data-nav]').forEach(item => {
 document.querySelector('.nav-item[data-nav="all"]').classList.add('active');
 
 let sealedProducts = null;
+let sealedLoadStarted = false;
 
 async function loadSealedProductsForShop() {
+  if (sealedLoadStarted) return;
+  sealedLoadStarted = true;
   document.getElementById('scellesGrid').innerHTML = '<div class="loading">Chargement...</div>';
   try {
     const resp = await fetch(`${SUPABASE_URL}/rest/v1/produits_scelles?select=*&order=created_at.desc`, {
@@ -1124,6 +1127,7 @@ if (initNav === 'favorites' || initNav === 'scelles') {
 if (initQ || initSeries || initNav) window.history.replaceState({}, '', window.location.pathname);
 
 loadCards();
+loadSealedProductsForShop();
 </script>
 
 </body>
