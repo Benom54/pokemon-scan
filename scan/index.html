@@ -1068,6 +1068,7 @@ async function saveToStock(force) {
     series_id: lastSeries?.id || null,
     series_name: lastSeries?.name || null,
     series_logo: lastSeries?.logo || null,
+    tcgdex_description: lastCard.description || null,
     holo: !!(lastInfo && lastInfo.holo),
     price: parseFloat(document.getElementById('editPrice').value) || null,
     status: 'en_stock',
