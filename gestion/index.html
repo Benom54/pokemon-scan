@@ -279,6 +279,8 @@
       <b style="font-size:13px;">Fiche produit &amp; panier</b>
       <label class="mt">Texte du lien retour</label>
       <input type="text" id="txtBreadcrumb" placeholder="← Retour au catalogue">
+      <label class="mt">Description automatique <span style="color:#8b897f; font-weight:400;">({nom}, {numero}, {serie}, {etat} disponibles)</span></label>
+      <input type="text" id="txtCardDescription" placeholder="Découvre la sublime carte {nom}, Pokémon de la série {serie}, actuellement disponible.">
     </div>
 
     <button id="textsApplyBtn" style="margin-top:18px;">Enregistrer les textes</button>
@@ -832,7 +834,8 @@ const TEXT_SETTING_FIELDS = {
   banner_nodiscount_cta_text: 'txtNoDiscountCtaText',
   banner_nodiscount_cta_link: 'txtNoDiscountCtaLink',
   sidebar_stock_text: 'txtSidebarStock',
-  breadcrumb_text: 'txtBreadcrumb'
+  breadcrumb_text: 'txtBreadcrumb',
+  card_description_template: 'txtCardDescription'
 };
 
 async function loadDiscount(url, key) {
