@@ -391,6 +391,10 @@
         <option value="vendue">Vendue</option>
       </select>
     </div>
+    <div class="field-edit">
+      <label for="editDescription">Description TCGdex (optionnelle)</label>
+      <textarea id="editDescription" rows="3" style="width:100%; background:var(--card); border:1px solid var(--line); border-radius:8px; color:var(--ink); padding:9px 11px; font-size:14px; font-family:inherit; resize:vertical;"></textarea>
+    </div>
     <div id="editStatusMsg" style="font-size:13px; margin-top:10px; min-height:18px;"></div>
 
     <div class="modal-actions" style="margin-top:14px;">
@@ -655,6 +659,7 @@ function openEditModal(id) {
   document.getElementById('editPrice').value = card.price != null ? card.price : '';
   document.getElementById('editCondition').value = card.condition || 'Near Mint';
   document.getElementById('editStatus').value = card.status || 'en_stock';
+  document.getElementById('editDescription').value = card.tcgdex_description || '';
   document.getElementById('editStatusMsg').textContent = '';
   document.getElementById('editModalOverlay').classList.add('open');
 }
@@ -679,7 +684,8 @@ document.getElementById('editModalSave').addEventListener('click', async () => {
     slug: slugify(document.getElementById('editSlug').value) || null,
     price: parseFloat(document.getElementById('editPrice').value) || null,
     condition: document.getElementById('editCondition').value,
-    status: document.getElementById('editStatus').value
+    status: document.getElementById('editStatus').value,
+    tcgdex_description: document.getElementById('editDescription').value.trim() || null
   };
 
   msgEl.style.color = '';
