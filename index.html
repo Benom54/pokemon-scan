@@ -922,8 +922,10 @@ function renderScellesGrid() {
       }
     } else { priceHtml = 'Sur demande'; }
 
+    const productUrl = `/produit-scelle/${encodeURIComponent(p.slug || 'id-' + p.id)}/`;
+
     return `
-      <div class="slab" style="animation-delay:${i * 0.03}s">
+      <div class="slab" style="animation-delay:${i * 0.03}s" data-url="${escapeHtml(productUrl)}">
         <div class="slab-media">
           ${p.image_url ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.nom)}" loading="lazy">` : ''}
           ${isSoldOut ? `<div class="sold-badge"><span>Rupture de stock</span></div>` : ''}
@@ -946,6 +948,13 @@ function renderScellesGrid() {
       </div>
     `;
   }).join('');
+
+  gridEl.querySelectorAll('.slab').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.closest('[data-cart]')) return;
+      window.location.href = el.dataset.url;
+    });
+  });
 
   gridEl.querySelectorAll('[data-cart]').forEach(btn => {
     if (btn.disabled) return;
@@ -1107,9 +1116,10 @@ const initSeries = new URLSearchParams(window.location.search).get('series');
 const initNav = new URLSearchParams(window.location.search).get('nav');
 if (initQ) document.getElementById('search').value = initQ;
 if (initSeries) activeSeries = initSeries;
-if (initNav === 'favorites') {
-  activeNav = 'favorites';
-  document.querySelectorAll('.nav-item[data-nav]').forEach(i => i.classList.toggle('active', i.dataset.nav === 'favorites'));
+if (initNav === 'favorites' || initNav === 'scelles') {
+  activeNav = initNav;
+  document.querySelectorAll('.nav-item[data-nav]').forEach(i => i.classList.toggle('active', i.dataset.nav === initNav));
+  updateViewVisibility();
 }
 if (initQ || initSeries || initNav) window.history.replaceState({}, '', window.location.pathname);
 
