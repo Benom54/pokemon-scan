@@ -32,6 +32,13 @@
 
   .app { display: flex; min-height: 100vh; }
 
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 45; }
+  .sidebar-overlay.open { display: block; }
+  .sidebar-close { display: none; }
+  .sidebar-header-row { display: flex; align-items: center; justify-content: space-between; }
+  .brand-mini-topbar { display: none; }
+  .search-toggle-btn { display: none; }
+
   .sidebar {
     width: 216px; flex-shrink: 0; background: var(--ink-2); border-right: 1px solid var(--line);
     padding: 18px 14px; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
@@ -152,10 +159,19 @@
   footer { text-align: center; padding: 40px 26px 60px; color: var(--muted-dim); font-size: 12.5px; }
 
   @media (max-width: 900px) {
-    .sidebar { position: fixed; left: -220px; z-index: 50; transition: left 0.2s; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+    .sidebar { position: fixed; left: -240px; z-index: 51; transition: left 0.2s; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
     .sidebar.open { left: 0; }
     .mobile-toggle { display: flex; width: 34px; height: 34px; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--text); cursor: pointer; flex-shrink: 0; }
-    .topbar { padding: 10px 16px; }
+    .sidebar-close { display: flex; width: 30px; height: 30px; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); cursor: pointer; flex-shrink: 0; }
+    .topbar { padding: 10px 12px; position: relative; gap: 6px; }
+    .brand-mini-topbar { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .brand-mini-topbar .mark { width: 28px; height: 28px; border-radius: 7px; background: linear-gradient(135deg, var(--brass), var(--emerald)); display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 11px; color: var(--ink); }
+    .search-toggle-btn { display: flex; width: 34px; height: 34px; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--text); cursor: pointer; flex-shrink: 0; }
+    .search-field { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--ink); border-bottom: 1px solid var(--line); padding: 10px 12px; z-index: 25; max-width: none; }
+    .search-field.open { display: block; }
+    .search-field svg { display: none; }
+    .search-field input { width: 100%; padding-left: 12px; }
+    .auth-actions { margin-left: auto; }
     .hero h1 { font-size: 30px; }
     .hero-decor { display: none; }
     .steps, .benefits { grid-template-columns: 1fr; }
@@ -168,12 +184,18 @@
 </head>
 <body>
 
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="app">
   <aside class="sidebar" id="sidebar">
-    <a class="brand" href="/">
-      <div class="brand-mark">RC</div>
-      <span class="brand-name wordmark">Retrocarte</span>
-    </a>
+    <div class="sidebar-header-row">
+      <a class="brand" href="/">
+        <div class="brand-mark">RC</div>
+        <span class="brand-name wordmark">Retrocarte</span>
+      </a>
+      <div class="sidebar-close" id="sidebarClose">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
     <div class="nav-group">
       <a class="nav-item" href="/">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -196,9 +218,15 @@
       <div class="mobile-toggle" id="mobileToggle">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </div>
+      <div class="brand-mini-topbar">
+        <div class="mark">RC</div>
+      </div>
       <div class="search-field">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         <input type="text" id="search" placeholder="Chercher une carte..." onkeydown="if(event.key==='Enter'&&this.value.trim())window.location.href='/?q='+encodeURIComponent(this.value.trim())">
+      </div>
+      <div class="search-toggle-btn" id="searchToggleBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       </div>
       <div class="icon-btn" onclick="window.location.href='/panier/'" title="Panier">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/><path d="M2 3h2l2.4 12.4a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7H6"/></svg>
@@ -372,7 +400,24 @@ function renderAuthActions() {
 }
 renderAuthActions();
 
-document.getElementById('mobileToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+function openMobileSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+document.getElementById('mobileToggle').addEventListener('click', openMobileSidebar);
+document.getElementById('sidebarClose').addEventListener('click', closeMobileSidebar);
+document.getElementById('sidebarOverlay').addEventListener('click', closeMobileSidebar);
+
+const searchToggleBtnEl = document.getElementById('searchToggleBtn');
+if (searchToggleBtnEl) {
+  searchToggleBtnEl.addEventListener('click', () => {
+    document.querySelector('.search-field').classList.toggle('open');
+  });
+}
 
 // stock count dans la barre latérale (cohérent avec le reste du site)
 (async function loadSidebarStock() {
