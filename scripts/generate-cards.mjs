@@ -32,6 +32,41 @@ function withExt(url) {
   return /\.(png|webp|jpe?g)$/i.test(url) ? url : `${url}.png`;
 }
 
+function buildTrustBarHtml(settingsMap) {
+  const items = [
+    {
+      icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 6a6 6 0 0 0-6 6v3l-1.5 2.5A1 1 0 0 0 5.4 19H12a6 6 0 0 0 0-12z"/><circle cx="9" cy="12" r=".6" fill="currentColor"/><circle cx="12" cy="12" r=".6" fill="currentColor"/><circle cx="15" cy="12" r=".6" fill="currentColor"/></svg>',
+      title: settingsMap.trust1_title || 'Réponse rapide',
+      text: settingsMap.trust1_text || 'Sous 24h, du lundi au samedi'
+    },
+    {
+      icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/><path d="M8.5 13.5 7 21l5-3 5 3-1.5-7.5"/></svg>',
+      title: settingsMap.trust2_title || 'Authenticité garantie',
+      text: settingsMap.trust2_text || 'Chaque carte vérifiée à la main'
+    },
+    {
+      icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>',
+      title: settingsMap.trust3_title || 'Satisfait ou remboursé',
+      text: settingsMap.trust3_text || "14 jours pour changer d'avis"
+    },
+    {
+      icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="7" width="14" height="10" rx="1"/><path d="M15 10h3l4 4v3h-7z"/><circle cx="6" cy="19" r="1.6"/><circle cx="18" cy="19" r="1.6"/></svg>',
+      title: settingsMap.trust4_title || 'Envoi soigné',
+      text: settingsMap.trust4_text || 'Protection premium, sous 24-48h'
+    }
+  ];
+  return `
+    <div class="trust-bar">
+      ${items.map(i => `
+        <div class="trust-item">
+          <div class="trust-icon">${i.icon}</div>
+          <div class="trust-text"><b>${escapeHtml(i.title)}</b><span>${escapeHtml(i.text)}</span></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 async function main() {
   const [cardsResp, settingsResp] = await Promise.all([
     fetch(`${SUPABASE_URL}/rest/v1/cartes?select=*`, {
@@ -49,9 +84,9 @@ async function main() {
   let breadcrumbText = '← Retour au catalogue';
   let cardDescriptionTemplate = 'Découvre la sublime carte {nom}, Pokémon de la série {serie}, actuellement disponible.';
   let sealedDescriptionTemplate = 'Découvre {nom}, un {type} de la série {serie}, actuellement disponible.';
+  let settingsMap = {};
   if (settingsResp.ok) {
     const rows = await settingsResp.json();
-    const settingsMap = {};
     rows.forEach(r => { settingsMap[r.key] = r.value; });
     if (settingsMap.discount_percent != null) discountPercent = parseInt(settingsMap.discount_percent, 10) || 0;
     if (settingsMap.breadcrumb_text) breadcrumbText = settingsMap.breadcrumb_text;
@@ -137,7 +172,9 @@ async function main() {
           ? `<div class="cta cta-disabled">Indisponible — déjà vendue</div>`
           : `<button type="button" class="cta" id="cartToggleBtn" data-id="${escapeHtml(c.id)}">Ajouter au panier</button>`}
       </div>
-    </div></div>
+    </div>
+    ${buildTrustBarHtml(settingsMap)}
+    </div>
     `;
 
     let html = template;
@@ -229,7 +266,9 @@ async function main() {
           ? `<div class="cta cta-disabled">Indisponible — déjà vendu</div>`
           : `<button type="button" class="cta" id="cartToggleBtn" data-id="${escapeHtml(p.id)}">Ajouter au panier</button>`}
       </div>
-    </div></div>
+    </div>
+    ${buildTrustBarHtml(settingsMap)}
+    </div>
     `;
 
       let html = scelleTemplate;
