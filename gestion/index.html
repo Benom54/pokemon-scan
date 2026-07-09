@@ -279,8 +279,30 @@
       <b style="font-size:13px;">Fiche produit &amp; panier</b>
       <label class="mt">Texte du lien retour</label>
       <input type="text" id="txtBreadcrumb" placeholder="← Retour au catalogue">
-      <label class="mt">Description automatique <span style="color:#8b897f; font-weight:400;">({nom}, {numero}, {serie}, {etat} disponibles)</span></label>
+      <label class="mt">Description automatique — cartes <span style="color:#8b897f; font-weight:400;">({nom}, {numero}, {serie}, {etat})</span></label>
       <textarea id="txtCardDescription" rows="4" style="width:100%; background:var(--card); border:1px solid var(--line); border-radius:8px; color:var(--ink); padding:9px 11px; font-size:14px; font-family:inherit; resize:vertical;" placeholder="Découvre la sublime carte {nom}, Pokémon de la série {serie}, actuellement disponible."></textarea>
+      <label class="mt">Description automatique — produits scellés <span style="color:#8b897f; font-weight:400;">({nom}, {type}, {serie})</span></label>
+      <textarea id="txtSealedDescription" rows="4" style="width:100%; background:var(--card); border:1px solid var(--line); border-radius:8px; color:var(--ink); padding:9px 11px; font-size:14px; font-family:inherit; resize:vertical;" placeholder="Découvre {nom}, un {type} de la série {serie}, actuellement disponible."></textarea>
+    </div>
+
+    <div style="border-top:1px solid var(--line); padding-top:14px; margin-top:18px;">
+      <b style="font-size:13px;">Barre de confiance (fiche produit)</b>
+      <div class="row mt">
+        <div><label>Titre 1</label><input type="text" id="txtTrust1Title" placeholder="Réponse rapide"></div>
+        <div><label>Texte 1</label><input type="text" id="txtTrust1Text" placeholder="Sous 24h, du lundi au samedi"></div>
+      </div>
+      <div class="row mt">
+        <div><label>Titre 2</label><input type="text" id="txtTrust2Title" placeholder="Authenticité garantie"></div>
+        <div><label>Texte 2</label><input type="text" id="txtTrust2Text" placeholder="Chaque carte vérifiée à la main"></div>
+      </div>
+      <div class="row mt">
+        <div><label>Titre 3</label><input type="text" id="txtTrust3Title" placeholder="Satisfait ou remboursé"></div>
+        <div><label>Texte 3</label><input type="text" id="txtTrust3Text" placeholder="14 jours pour changer d'avis"></div>
+      </div>
+      <div class="row mt">
+        <div><label>Titre 4</label><input type="text" id="txtTrust4Title" placeholder="Envoi soigné"></div>
+        <div><label>Texte 4</label><input type="text" id="txtTrust4Text" placeholder="Protection premium, sous 24-48h"></div>
+      </div>
     </div>
 
     <button id="textsApplyBtn" style="margin-top:18px;">Enregistrer les textes</button>
@@ -841,7 +863,12 @@ const TEXT_SETTING_FIELDS = {
   banner_nodiscount_cta_link: 'txtNoDiscountCtaLink',
   sidebar_stock_text: 'txtSidebarStock',
   breadcrumb_text: 'txtBreadcrumb',
-  card_description_template: 'txtCardDescription'
+  card_description_template: 'txtCardDescription',
+  sealed_description_template: 'txtSealedDescription',
+  trust1_title: 'txtTrust1Title', trust1_text: 'txtTrust1Text',
+  trust2_title: 'txtTrust2Title', trust2_text: 'txtTrust2Text',
+  trust3_title: 'txtTrust3Title', trust3_text: 'txtTrust3Text',
+  trust4_title: 'txtTrust4Title', trust4_text: 'txtTrust4Text'
 };
 
 async function loadDiscount(url, key) {
