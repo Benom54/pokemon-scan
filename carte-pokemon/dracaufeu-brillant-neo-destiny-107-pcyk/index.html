@@ -153,6 +153,8 @@
   .series-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
   .series-row img { height: 18px; width: auto; }
   .series-row span { font-size: 13px; color: var(--muted); }
+  .card-description { margin-bottom: 16px; }
+  .card-description p { font-size: 13.5px; color: var(--muted); line-height: 1.6; margin: 0 0 8px; }
 
   .price-block { margin: 12px 0 20px; }
   .price-original { text-decoration: line-through; color: var(--muted-dim); font-weight: 600; font-size: 20px; margin-right: 10px; }
@@ -321,6 +323,11 @@
             <span>Neo</span>
           </div>
         
+        
+    <div class="card-description">
+      <p>Découvre la sublime carte Dracaufeu brillant, Pokémon de la série Neo Destiny, actuellement disponible.</p>
+      
+    </div>
         <div class="price-block price mono"><span class="price-original">1600.00 €</span><span class="price-discounted">1472.00 €</span></div>
         <button type="button" class="cta" id="cartToggleBtn" data-id="14d219ad-3734-4930-93d7-0862a6bd49c8">Ajouter au panier</button>
       </div>
@@ -613,6 +620,19 @@ function renderCard(c, discountPercent) {
   const contentEl = document.getElementById('content');
   const numberSet = [c.card_number, c.set_name].filter(Boolean).join(' · ');
 
+  const descTemplate = siteSettings.card_description_template || 'Découvre la sublime carte {nom}, Pokémon de la série {serie}, actuellement disponible.';
+  const autoDescription = descTemplate
+    .replace(/\{nom\}/g, c.name || '')
+    .replace(/\{numero\}/g, c.card_number || '')
+    .replace(/\{serie\}/g, c.set_name || c.series_name || '')
+    .replace(/\{etat\}/g, c.condition || '');
+  const descriptionHtml = `
+    <div class="card-description">
+      <p>${escapeHtml(autoDescription)}</p>
+      ${c.tcgdex_description ? `<p>${escapeHtml(c.tcgdex_description)}</p>` : ''}
+    </div>
+  `;
+
   const titleParts = [c.name, numberSet, c.condition].filter(Boolean);
   document.title = `${titleParts.join(' — ')} | Retrocarte`;
   const h1El = document.getElementById('pageH1');
@@ -659,6 +679,7 @@ function renderCard(c, discountPercent) {
             <span>${escapeHtml(c.series_name)}</span>
           </div>
         ` : ''}
+        ${descriptionHtml}
         <div class="price-block price mono">${priceHtml}</div>
         ${isSoldOut
           ? `<div class="cta cta-disabled">Indisponible — déjà vendue</div>`
@@ -686,8 +707,7 @@ function renderCard(c, discountPercent) {
 
 renderAuthActions();
 updateCartUI();
-loadSiteSettings().then(loadBlocks);
-loadCard();
+loadSiteSettings().then(() => { loadBlocks(); loadCard(); });
 </script>
 
 </body>
