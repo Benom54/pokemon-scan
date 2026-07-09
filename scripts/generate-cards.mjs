@@ -114,7 +114,7 @@ async function main() {
       .replace(/\{etat\}/g, c.condition || '');
     const descriptionHtml = `
     <div class="card-description">
-      <p>${escapeHtml(autoDescription)}</p>
+      <p>${escapeHtml(autoDescription).replace(/\n/g, '<br>')}</p>
       ${c.tcgdex_description ? `<p>${escapeHtml(c.tcgdex_description)}</p>` : ''}
     </div>`;
 
