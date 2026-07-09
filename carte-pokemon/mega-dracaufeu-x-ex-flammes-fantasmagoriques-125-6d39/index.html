@@ -45,6 +45,13 @@
 
   .app { display: flex; min-height: 100vh; }
 
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 45; }
+  .sidebar-overlay.open { display: block; }
+  .sidebar-close { display: none; }
+  .sidebar-header-row { display: flex; align-items: center; justify-content: space-between; }
+  .brand-mini-topbar { display: none; }
+  .search-toggle-btn { display: none; }
+
   .sidebar {
     width: 216px; flex-shrink: 0; background: var(--ink-2); border-right: 1px solid var(--line);
     padding: 18px 14px; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
@@ -204,12 +211,20 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
   @media (max-width: 900px) {
-    .sidebar { position: fixed; left: -220px; z-index: 50; transition: left 0.2s; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+    .sidebar { position: fixed; left: -240px; z-index: 51; transition: left 0.2s; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
     .sidebar.open { left: 0; }
     .mobile-toggle { display: flex; width: 34px; height: 34px; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--text); cursor: pointer; flex-shrink: 0; }
-    .topbar { padding: 10px 16px; flex-wrap: wrap; }
-    .search-field { max-width: none; order: 1; flex-basis: 100%; }
-    .auth-actions { margin-left: 0; }
+    .sidebar-close { display: flex; width: 30px; height: 30px; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); cursor: pointer; flex-shrink: 0; }
+    .topbar { padding: 10px 12px; position: relative; gap: 6px; }
+    .brand-mini-topbar { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .brand-mini-topbar .mark { width: 28px; height: 28px; border-radius: 7px; background: linear-gradient(135deg, var(--brass), var(--emerald)); display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 11px; color: var(--ink); }
+    .search-toggle-btn { display: flex; width: 34px; height: 34px; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--text); cursor: pointer; flex-shrink: 0; }
+    .search-field { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--ink); border-bottom: 1px solid var(--line); padding: 10px 12px; z-index: 25; max-width: none; }
+    .search-field.open { display: block; }
+    .search-field svg { display: none; }
+    .search-field input { width: 100%; padding-left: 12px; }
+    .sort-select, .filter-btn, .view-toggle { display: none !important; }
+    .auth-actions { margin-left: auto; }
     .breadcrumb, main { padding-left: 16px; padding-right: 16px; }
     .card-panel { grid-template-columns: 1fr; }
     .photos { flex-direction: row; }
@@ -218,12 +233,18 @@
 </head>
 <body>
 
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="app">
   <aside class="sidebar" id="sidebar">
-    <a class="brand" href="/">
-      <div class="brand-mark">RC</div>
-      <span class="brand-name wordmark">Retrocarte</span>
-    </a>
+    <div class="sidebar-header-row">
+      <a class="brand" href="/">
+        <div class="brand-mark">RC</div>
+        <span class="brand-name wordmark">Retrocarte</span>
+      </a>
+      <div class="sidebar-close" id="sidebarClose">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
 
     <div class="nav-group">
       <a class="nav-item" href="/">
@@ -233,6 +254,10 @@
       <a class="nav-item" href="/?nav=favorites">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
         Favoris
+      </a>
+      <a class="nav-item" href="/?nav=scelles">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="13" rx="1.5"/><path d="M4 11h16M9 7V4h6v3"/></svg>
+        Produits scellés
       </a>
       <a class="nav-item" href="/rachat-de-cartes-pokemon/">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -255,10 +280,16 @@
       <div class="mobile-toggle" id="mobileToggle">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </div>
+      <div class="brand-mini-topbar">
+        <div class="mark">RC</div>
+      </div>
       <form class="search-field" id="searchForm">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         <input type="text" id="search" placeholder="Chercher une carte...">
       </form>
+      <div class="search-toggle-btn" id="searchToggleBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </div>
       <select class="sort-select" onchange="window.location.href='/'"><option>Plus récentes</option></select>
       <div class="filter-btn" onclick="window.location.href='/'">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
@@ -436,7 +467,24 @@ document.getElementById('searchForm').addEventListener('submit', e => {
   window.location.href = q ? `/?q=${encodeURIComponent(q)}` : '/';
 });
 
-document.getElementById('mobileToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+function openMobileSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+document.getElementById('mobileToggle').addEventListener('click', openMobileSidebar);
+document.getElementById('sidebarClose').addEventListener('click', closeMobileSidebar);
+document.getElementById('sidebarOverlay').addEventListener('click', closeMobileSidebar);
+
+const searchToggleBtnEl = document.getElementById('searchToggleBtn');
+if (searchToggleBtnEl) {
+  searchToggleBtnEl.addEventListener('click', () => {
+    document.querySelector('.search-field').classList.toggle('open');
+  });
+}
 
 function renderAuthActions() {
   const el = document.getElementById('authActions');
