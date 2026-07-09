@@ -15,6 +15,9 @@ const SERIES_LOGO_OVERRIDES = {}; // garder en phase avec la même constante dan
 const OUTPUT_ROOT = path.join(process.cwd(), 'carte-pokemon');
 const TEMPLATE_PATH = path.join(OUTPUT_ROOT, 'index.html');
 
+const SCELLE_OUTPUT_ROOT = path.join(process.cwd(), 'produit-scelle');
+const SCELLE_TEMPLATE_PATH = path.join(SCELLE_OUTPUT_ROOT, 'index.html');
+
 function escapeHtml(str) {
   return (str ?? '').toString()
     .replace(/&/g, '&amp;')
@@ -146,6 +149,91 @@ async function main() {
   console.log(`${generated} page(s) carte générée(s) dans carte-pokemon/{slug}/`);
 
   // ============================================================
+  // Produits scellés (Display, ETB, Blisters...) — meme principe
+  // ============================================================
+  const scelleSlugsSeen = new Set();
+  const scelleResp = await fetch(`${SUPABASE_URL}/rest/v1/produits_scelles?select=*`, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+  });
+
+  if (scelleResp.ok) {
+    const scelleTemplate = fs.readFileSync(SCELLE_TEMPLATE_PATH, 'utf8');
+    const scelleLoadingStart = scelleTemplate.indexOf('<div id="content">');
+    const scelleMainClose = scelleTemplate.indexOf('</main>');
+    const scelleLoadingBlock = scelleTemplate.slice(scelleLoadingStart, scelleMainClose);
+
+    const produits = await scelleResp.json();
+    let scelleGenerated = 0;
+
+    for (const p of produits) {
+      const folderName = p.slug || `id-${p.id}`;
+      scelleSlugsSeen.add(folderName);
+
+      const meta = [p.type, p.series_name].filter(Boolean).join(' · ');
+      const titleParts = [p.nom, meta].filter(Boolean);
+      const title = `${titleParts.join(' — ')} | Retrocarte`;
+      const description = `Acheter ${p.nom}${p.type ? ' (' + p.type + ')' : ''}${p.series_name ? ' de la série ' + p.series_name : ''}. Livraison gratuite.`
+        .replace(/\s+/g, ' ').trim();
+
+      const isSoldOut = p.status === 'vendue' || (p.quantite != null && p.quantite <= 0);
+
+      let priceHtml;
+      if (p.prix != null) {
+        if (discountPercent > 0) {
+          const discounted = p.prix * (1 - discountPercent / 100);
+          priceHtml = `<span class="price-original">${Number(p.prix).toFixed(2)} €</span><span class="price-discounted">${discounted.toFixed(2)} €</span>`;
+        } else {
+          priceHtml = `${Number(p.prix).toFixed(2)} €`;
+        }
+      } else {
+        priceHtml = 'Prix sur demande';
+      }
+
+      const badges = p.type ? `<span class="badge">${escapeHtml(p.type)}</span>` : '';
+      const photos = p.image_url ? `<div class="photo-frame" id="mainPhotoFrame"><img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.nom)}"><div class="photo-label">Photo du produit</div></div>` : '';
+
+      const scellePanelHtml = `<div id="content"><div class="card-panel">
+      <div class="photos">${photos}</div>
+      <div class="info-col">
+        <div class="badges">${badges}${isSoldOut ? '<span class="badge sold">Rupture de stock</span>' : ''}</div>
+        <div class="meta">${escapeHtml(meta)}</div>
+        ${p.description ? `<div class="meta" style="margin-top:6px;">${escapeHtml(p.description)}</div>` : ''}
+        <div class="price-block price mono">${priceHtml}</div>
+        ${isSoldOut
+          ? `<div class="cta cta-disabled">Indisponible — déjà vendu</div>`
+          : `<button type="button" class="cta" id="cartToggleBtn" data-id="${escapeHtml(p.id)}">Ajouter au panier</button>`}
+      </div>
+    </div></div>
+    `;
+
+      let html = scelleTemplate;
+      html = html.replace('<title>Produit scellé — Retrocarte</title>', `<title>${escapeHtml(title)}</title>`);
+      html = html.replace(
+        /<meta name="description" content="[^"]*">/,
+        `<meta name="description" content="${escapeHtml(description)}">`
+      );
+      html = html.replace(
+        '<h1 id="pageH1">Fiche produit scellé — Retrocarte</h1>',
+        `<h1 id="pageH1">${escapeHtml(titleParts.join(' — '))}</h1>`
+      );
+      html = html.replace(
+        '<div class="breadcrumb"><a href="/">← Retour au catalogue</a></div>',
+        `<div class="breadcrumb"><a href="/">${escapeHtml(breadcrumbText)}</a></div>`
+      );
+      html = html.split(scelleLoadingBlock).join(scellePanelHtml);
+
+      const outDir = path.join(SCELLE_OUTPUT_ROOT, folderName);
+      fs.mkdirSync(outDir, { recursive: true });
+      fs.writeFileSync(path.join(outDir, 'index.html'), html, 'utf8');
+      scelleGenerated++;
+    }
+
+    console.log(`${scelleGenerated} page(s) produit scellé générée(s) dans produit-scelle/{slug}/`);
+  } else {
+    console.warn('Impossible de récupérer les produits scellés (table absente ou erreur) — étape ignorée.');
+  }
+
+  // ============================================================
   // Sitemap : accueil, page de rachat, et toutes les fiches carte
   // ============================================================
   const siteRoot = process.cwd();
@@ -159,8 +247,12 @@ async function main() {
     loc: `https://retrocarte.com/carte-pokemon/${slug}/`,
     priority: '0.6'
   }));
+  const scelleUrls = [...scelleSlugsSeen].map(slug => ({
+    loc: `https://retrocarte.com/produit-scelle/${slug}/`,
+    priority: '0.6'
+  }));
 
-  const allUrls = [...staticUrls, ...cardUrls];
+  const allUrls = [...staticUrls, ...cardUrls, ...scelleUrls];
   const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${allUrls.map(u => `  <url>
