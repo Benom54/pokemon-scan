@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <title>Identification & étiquette carte Pokémon</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -480,6 +481,7 @@ let lastCard = null; // dernière fiche TCGdex trouvée
 let lastInfo = null; // dernière lecture IA (holo, etc.)
 let lastSeries = null; // bloc/série de la dernière carte (id, nom, logo)
 let lastSlug = null; // slug unique pour la page produit de cette carte
+let lastNumberMismatch = null; // numéro lu par l'IA si la carte trouvée n'a pas ce numéro (à vérifier manuellement)
 
 dropZoneFront.addEventListener('click', () => fileInputFront.click());
 dropZoneBack.addEventListener('click', () => fileInputBack.click());
@@ -647,20 +649,27 @@ async function lookupCard(info) {
   }
 
   let matches = cards;
-  if (info.set_hint) {
+
+  // Priorité 1 : le numéro exact — signal bien plus fiable que le nom du set deviné par l'IA
+  // (beaucoup de cartes partagent un nom, très peu partagent le même numéro dans le même set)
+  if (cardNumber) {
+    const byNumber = matches.filter(c => String(c.localId) === cardNumber);
+    if (byNumber.length > 0) matches = byNumber;
+  }
+
+  // Priorité 2 : si plusieurs cartes partagent encore ce numéro, affine avec le set deviné par l'IA
+  if (info.set_hint && matches.length > 1) {
     const bySet = matches.filter(c => normalizeName(c.set?.name).includes(normalizeName(info.set_hint)) || normalizeName(info.set_hint).includes(normalizeName(c.set?.name)));
     if (bySet.length > 0) matches = bySet;
   }
+
   let brief = matches[0];
-  if (cardNumber) {
-    const refined = matches.find(c => String(c.localId) === cardNumber);
-    if (refined) brief = refined;
-  }
+  const numberMismatch = cardNumber && String(brief.localId) !== cardNumber;
 
   const fullResp = await fetch(`https://api.tcgdex.net/v2/${lang}/cards/${brief.id}`);
   const full = await fullResp.json();
 
-  showResult(full, info);
+  showResult(full, info, numberMismatch ? cardNumber : null);
 }
 
 function escapeHtmlLite(str) {
@@ -738,9 +747,10 @@ async function fetchSeriesInfo(card) {
   }
 }
 
-function showResult(card, info) {
+function showResult(card, info, numberMismatch) {
   lastCard = card;
   lastInfo = info;
+  lastNumberMismatch = numberMismatch || null;
   lastSeries = null; // remis à zéro, rempli en tâche de fond par fetchSeriesInfo()
 
   // Slug unique pour la page produit, généré une fois pour toute la vie de cette identification
@@ -827,6 +837,9 @@ function updateBadgesAndWarning() {
 
   const warnEl = document.getElementById('priceWarning');
   let warnMsgs = [];
+  if (lastNumberMismatch) {
+    warnMsgs.push(`<b style="color:var(--danger);">⚠ Vérifie cette carte :</b> l'IA a lu le numéro "${lastNumberMismatch}" sur la photo, mais aucune carte "${card.name}" avec ce numéro exact n'a été trouvée — la fiche affichée est "${card.set?.name || 'set inconnu'} · ${card.localId}", possiblement une carte différente. Compare bien avec la photo, ou corrige via la recherche manuelle ci-dessus.`);
+  }
   if (isFirstEdition) {
     warnMsgs.push(`Carte 1ère édition : le prix ci-dessous est celui de la version standard, TCGdex ne distingue pas de prix spécifique 1ère édition. Ajuste le prix manuellement.`);
   }
