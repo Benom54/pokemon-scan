@@ -16,11 +16,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://retrocarte.com/carte-pokemon/mega-lucario-ex-mega-evolution-179-9bme/</loc>
-    <lastmod>2026-07-09</lastmod>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://retrocarte.com/carte-pokemon/noctali-v-evolution-celeste-189-jz1o/</loc>
     <lastmod>2026-07-09</lastmod>
     <priority>0.6</priority>
@@ -101,11 +96,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://retrocarte.com/carte-pokemon/tyranocif-neo-discovery-12-4dpk/</loc>
-    <lastmod>2026-07-09</lastmod>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://retrocarte.com/carte-pokemon/lugia-aquapolis-149-lo2p/</loc>
     <lastmod>2026-07-09</lastmod>
     <priority>0.6</priority>
@@ -127,11 +117,6 @@
   </url>
   <url>
     <loc>https://retrocarte.com/carte-pokemon/tortank-ex-151-200-wvke/</loc>
-    <lastmod>2026-07-09</lastmod>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://retrocarte.com/carte-pokemon/pikachu-ex-etincelles-deferlantes-238-g2zp/</loc>
     <lastmod>2026-07-09</lastmod>
     <priority>0.6</priority>
   </url>
@@ -166,7 +151,22 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://retrocarte.com/carte-pokemon/pikachu-ex-etincelles-deferlantes-238-g2zp/</loc>
+    <lastmod>2026-07-09</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://retrocarte.com/carte-pokemon/leviator-ex-ex-rouge-feu-vert-feuille-109-btpa/</loc>
+    <lastmod>2026-07-09</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://retrocarte.com/carte-pokemon/tyranocif-neo-discovery-12-4dpk/</loc>
+    <lastmod>2026-07-09</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://retrocarte.com/carte-pokemon/mega-lucario-ex-mega-evolution-179-9bme/</loc>
     <lastmod>2026-07-09</lastmod>
     <priority>0.6</priority>
   </url>
