@@ -275,6 +275,10 @@ Sitemap: https://retrocarte.com/sitemap.xml
 `;
   fs.writeFileSync(path.join(siteRoot, 'robots.txt'), robotsTxt, 'utf8');
 
+  // .nojekyll : evite que GitHub tente de traiter le site avec Jekyll (inutile ici, et plus lent
+  // a mesure que le nombre de pages generees augmente)
+  fs.writeFileSync(path.join(siteRoot, '.nojekyll'), '', 'utf8');
+
   console.log(`sitemap.xml généré avec ${allUrls.length} URL(s), robots.txt mis à jour.`);
 }
 
