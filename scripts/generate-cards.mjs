@@ -48,6 +48,7 @@ async function main() {
   let discountPercent = 0;
   let breadcrumbText = '← Retour au catalogue';
   let cardDescriptionTemplate = 'Découvre la sublime carte {nom}, Pokémon de la série {serie}, actuellement disponible.';
+  let sealedDescriptionTemplate = 'Découvre {nom}, un {type} de la série {serie}, actuellement disponible.';
   if (settingsResp.ok) {
     const rows = await settingsResp.json();
     const settingsMap = {};
@@ -55,6 +56,7 @@ async function main() {
     if (settingsMap.discount_percent != null) discountPercent = parseInt(settingsMap.discount_percent, 10) || 0;
     if (settingsMap.breadcrumb_text) breadcrumbText = settingsMap.breadcrumb_text;
     if (settingsMap.card_description_template) cardDescriptionTemplate = settingsMap.card_description_template;
+    if (settingsMap.sealed_description_template) sealedDescriptionTemplate = settingsMap.sealed_description_template;
   }
 
   const template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
@@ -206,12 +208,22 @@ async function main() {
       const badges = p.type ? `<span class="badge">${escapeHtml(p.type)}</span>` : '';
       const photos = p.image_url ? `<div class="photo-frame" id="mainPhotoFrame"><img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.nom)}"><div class="photo-label">Photo du produit</div></div>` : '';
 
+      const sealedAutoDescription = sealedDescriptionTemplate
+        .replace(/\{nom\}/g, p.nom || '')
+        .replace(/\{type\}/g, p.type || '')
+        .replace(/\{serie\}/g, p.series_name || '');
+      const sealedDescriptionHtml = `
+      <div class="card-description">
+        <p>${escapeHtml(sealedAutoDescription).replace(/\n/g, '<br>')}</p>
+        ${p.description ? `<p>${escapeHtml(p.description)}</p>` : ''}
+      </div>`;
+
       const scellePanelHtml = `<div id="content"><div class="card-panel">
       <div class="photos">${photos}</div>
       <div class="info-col">
         <div class="badges">${badges}${isSoldOut ? '<span class="badge sold">Rupture de stock</span>' : ''}</div>
         <div class="meta">${escapeHtml(meta)}</div>
-        ${p.description ? `<div class="meta" style="margin-top:6px;">${escapeHtml(p.description)}</div>` : ''}
+        ${sealedDescriptionHtml}
         <div class="price-block price mono">${priceHtml}</div>
         ${isSoldOut
           ? `<div class="cta cta-disabled">Indisponible — déjà vendu</div>`
