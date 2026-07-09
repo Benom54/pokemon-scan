@@ -47,12 +47,14 @@ async function main() {
 
   let discountPercent = 0;
   let breadcrumbText = '← Retour au catalogue';
+  let cardDescriptionTemplate = 'Découvre la sublime carte {nom}, Pokémon de la série {serie}, actuellement disponible.';
   if (settingsResp.ok) {
     const rows = await settingsResp.json();
     const settingsMap = {};
     rows.forEach(r => { settingsMap[r.key] = r.value; });
     if (settingsMap.discount_percent != null) discountPercent = parseInt(settingsMap.discount_percent, 10) || 0;
     if (settingsMap.breadcrumb_text) breadcrumbText = settingsMap.breadcrumb_text;
+    if (settingsMap.card_description_template) cardDescriptionTemplate = settingsMap.card_description_template;
   }
 
   const template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
@@ -105,6 +107,17 @@ async function main() {
 
     const seriesLogo = SERIES_LOGO_OVERRIDES[c.series_id] || (c.series_logo ? withExt(c.series_logo) : null);
 
+    const autoDescription = cardDescriptionTemplate
+      .replace(/\{nom\}/g, c.name || '')
+      .replace(/\{numero\}/g, c.card_number || '')
+      .replace(/\{serie\}/g, c.set_name || c.series_name || '')
+      .replace(/\{etat\}/g, c.condition || '');
+    const descriptionHtml = `
+    <div class="card-description">
+      <p>${escapeHtml(autoDescription)}</p>
+      ${c.tcgdex_description ? `<p>${escapeHtml(c.tcgdex_description)}</p>` : ''}
+    </div>`;
+
     const cardPanelHtml = `<div id="content"><div class="card-panel ${isRare && !isSoldOut ? 'rare-halo' : ''}">
       <div class="photos">${photos.join('')}</div>
       <div class="info-col">
@@ -116,6 +129,7 @@ async function main() {
             <span>${escapeHtml(c.series_name)}</span>
           </div>
         ` : ''}
+        ${descriptionHtml}
         <div class="price-block price mono">${priceHtml}</div>
         ${isSoldOut
           ? `<div class="cta cta-disabled">Indisponible — déjà vendue</div>`
