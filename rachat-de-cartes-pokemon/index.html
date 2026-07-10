@@ -365,7 +365,7 @@ function renderAuthActions() {
   const el = document.getElementById('authActions');
   if (session && session.user) {
     const initial = (session.user.email || '?')[0].toUpperCase();
-    el.innerHTML = `<div class="user-chip"><div class="user-avatar">${initial}</div>${escapeHtml(session.user.email)}</div>`;
+    el.innerHTML = `<a class="user-chip" href="/compte/" title="Mon compte"><div class="user-avatar">${initial}</div>${escapeHtml(session.user.email)}</a>`;
   } else {
     el.innerHTML = `<a class="btn-ghost" href="/">Se connecter</a><a class="btn-primary" href="/">S'enregistrer</a>`;
   }
