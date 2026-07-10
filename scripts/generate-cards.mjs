@@ -7,9 +7,9 @@
 
 import fs from 'fs';
 import path from 'path';
+import config from '../assets/config.js';
 
-const SUPABASE_URL = 'https://izfusafzbekuezqitzsp.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_NYWtmqeLH0CMygyhM2R7Yw_ACYqyBCe';
+const { SUPABASE_URL, SUPABASE_ANON_KEY, escapeHtml, withExt } = config;
 const SERIES_LOGO_OVERRIDES = {}; // garder en phase avec la même constante dans index.html si un jour modifiée
 
 const OUTPUT_ROOT = path.join(process.cwd(), 'carte-pokemon');
@@ -17,20 +17,6 @@ const TEMPLATE_PATH = path.join(OUTPUT_ROOT, 'index.html');
 
 const SCELLE_OUTPUT_ROOT = path.join(process.cwd(), 'produit-scelle');
 const SCELLE_TEMPLATE_PATH = path.join(SCELLE_OUTPUT_ROOT, 'index.html');
-
-function escapeHtml(str) {
-  return (str ?? '').toString()
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function withExt(url) {
-  if (!url) return url;
-  return /\.(png|webp|jpe?g)$/i.test(url) ? url : `${url}.png`;
-}
 
 function buildTrustBarHtml(settingsMap) {
   const items = [
