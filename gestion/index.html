@@ -5,10 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <title>Gestion du stock</title>
+<meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="/assets/config.js"></script>
+<style>body{visibility:hidden;}</style>
 <style>
   :root {
     --ink: #eef1f5;
@@ -467,6 +469,9 @@
 </div>
 
 <script>
+// Gardien de page — remplace GESTION_PASSWORD_HASH par ton propre hash si tu veux changer le mot de passe.
+requirePagePassword('58f7ea6ee085247f53256043a87736302a8e69bc18b723f7417f238941d4ad40', 'retrocarte_admin_unlocked');
+
 const urlInput = document.getElementById('supabaseUrl');
 const keyInput = document.getElementById('supabaseKey');
 const statusEl = document.getElementById('status');
