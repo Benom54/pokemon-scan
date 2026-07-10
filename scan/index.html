@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/assets/config.js"></script>
 <style>
   :root {
     --ink: #eef1f5;
@@ -680,11 +681,7 @@ async function lookupCard(info) {
   showResult(full, info, numberMismatch ? cardNumber : null);
 }
 
-function escapeHtmlLite(str) {
-  const div = document.createElement('div');
-  div.textContent = str || '';
-  return div.innerHTML;
-}
+const escapeHtmlLite = escapeHtml; // alias historique, fourni par /assets/config.js
 
 async function runManualSearch() {
   const query = document.getElementById('manualSearchName').value.trim();
@@ -946,16 +943,6 @@ async function uploadImageToStorage(supabaseUrl, serviceKey, base64, mediaType) 
     console.error('Erreur upload photo :', err);
     return null;
   }
-}
-
-// Construit un slug lisible (nom-set-numero) pour nommer l'image sur ton propre stockage
-function slugify(str) {
-  return (str || '')
-    .toString()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // retire les accents
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
 }
 
 // Télécharge l'image officielle TCGdex et la réenregistre dans ton bucket, sous un nom basé sur le slug,
