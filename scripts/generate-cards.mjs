@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import config from '../assets/config.js';
 
-const { SUPABASE_URL, SUPABASE_ANON_KEY, escapeHtml, withExt } = config;
+const { SUPABASE_URL, SUPABASE_ANON_KEY, escapeHtml, withExt, buildStockBarHtml } = config;
 const SERIES_LOGO_OVERRIDES = {}; // garder en phase avec la même constante dans index.html si un jour modifiée
 
 const OUTPUT_ROOT = path.join(process.cwd(), 'carte-pokemon');
@@ -290,6 +290,7 @@ async function main() {
         <div class="meta">${escapeHtml(meta)}</div>
         ${sealedDescriptionHtml}
         <div class="price-block price mono">${priceHtml}</div>
+        ${buildStockBarHtml(p.quantite, isSoldOut)}
         ${isSoldOut
           ? `<div class="cta cta-disabled">Indisponible — déjà vendu</div>`
           : `<button type="button" class="cta" id="cartToggleBtn" data-id="${escapeHtml(p.id)}">Ajouter au panier</button>`}
