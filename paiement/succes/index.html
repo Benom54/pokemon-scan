@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<title>Commande confirmée — Retrocarte</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/styles.css">
+<style>
+  body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .box { max-width: 480px; padding: 40px 30px; text-align: center; }
+  .check { width: 64px; height: 64px; margin: 0 auto 20px; border-radius: 50%; background: var(--emerald); display: flex; align-items: center; justify-content: center; }
+  h1 { font-family: 'Space Grotesk', sans-serif; font-size: 22px; margin: 0 0 10px; }
+  p { color: var(--muted); line-height: 1.5; margin: 0 0 22px; }
+  .btn-primary { background: var(--brass); border: 1px solid var(--brass); color: var(--ink); padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-right: 8px; }
+  .btn-ghost { background: var(--surface); border: 1px solid var(--line); color: var(--text); padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .status-note { font-size: 12px; color: var(--muted-dim); margin-top: 18px; }
+</style>
+</head>
+<body>
+
+<div class="box">
+  <div class="check">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#f4fbf7" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+  </div>
+  <h1>Commande confirmée !</h1>
+  <p>Ton paiement a bien été reçu. Un e-mail de confirmation Stripe t'a été envoyé, et tu peux suivre le statut de ta commande dans ton espace client.</p>
+  <a class="btn-primary" href="/compte/">Voir ma commande</a>
+  <a class="btn-ghost" href="/">Retour au catalogue</a>
+  <div class="status-note" id="statusNote"></div>
+</div>
+
+<script src="/assets/config.js"></script>
+<script>
+// Vide le panier local puisque la commande vient d'être payée.
+localStorage.removeItem('retrocarte_cart');
+
+// Petite vérification informative (facultative) : le webhook Stripe met parfois
+// quelques secondes à confirmer la commande côté base. On affiche juste un statut,
+// sans bloquer l'utilisateur.
+(async () => {
+  const params = new URLSearchParams(window.location.search);
+  const sessionId = params.get('session_id');
+  const noteEl = document.getElementById('statusNote');
+  if (!sessionId) return;
+
+  const session = JSON.parse(localStorage.getItem('retrocarte_session') || 'null');
+  if (!session?.access_token) return;
+
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/orders?stripe_session_id=eq.${encodeURIComponent(sessionId)}&select=status`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${session.access_token}` }
+    });
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    if (rows[0]?.status === 'paid') {
+      noteEl.textContent = 'Commande enregistrée ✓';
+    } else {
+      noteEl.textContent = 'Confirmation en cours de traitement...';
+    }
+  } catch (e) { /* pas bloquant */ }
+})();
+</script>
+
+</body>
+</html>
