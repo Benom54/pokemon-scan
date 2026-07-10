@@ -429,6 +429,61 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="editScelleModalOverlay">
+  <div class="modal">
+    <h2 id="editScelleModalTitle">Modifier le produit scellé</h2>
+
+    <div class="field-edit">
+      <label for="editScelleNom">Nom</label>
+      <input type="text" id="editScelleNom">
+    </div>
+    <div class="field-edit">
+      <label for="editScelleType">Type</label>
+      <select id="editScelleType">
+        <option>Display</option>
+        <option>ETB</option>
+        <option>Blister</option>
+        <option>Coffret</option>
+        <option>Deck</option>
+        <option>Autre</option>
+      </select>
+    </div>
+    <div class="field-edit">
+      <label for="editScelleSerie">Série</label>
+      <input type="text" id="editScelleSerie">
+    </div>
+    <div class="field-edit">
+      <label for="editScellePrix">Prix (€)</label>
+      <input type="text" id="editScellePrix">
+    </div>
+    <div class="field-edit">
+      <label for="editScelleQuantite">Quantité</label>
+      <input type="number" id="editScelleQuantite" min="0">
+    </div>
+    <div class="field-edit">
+      <label for="editScelleStatus">Statut</label>
+      <select id="editScelleStatus">
+        <option value="en_stock">En stock</option>
+        <option value="vendue">Vendue</option>
+      </select>
+    </div>
+    <div class="field-edit">
+      <label for="editScelleSlug">Slug (URL de la page produit)</label>
+      <input type="text" id="editScelleSlug">
+    </div>
+    <div class="field-edit">
+      <label for="editScelleDescription">Description (optionnelle)</label>
+      <textarea id="editScelleDescription" rows="3" style="width:100%; background:var(--card); border:1px solid var(--line); border-radius:8px; color:var(--ink); padding:9px 11px; font-size:14px; font-family:inherit; resize:vertical;"></textarea>
+    </div>
+    <div id="editScelleStatusMsg" style="font-size:13px; margin-top:10px; min-height:18px;"></div>
+
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="ghost" id="editScelleModalCancel">Annuler</button>
+      <button id="editScelleModalSave">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay print-modal" id="printModalOverlay">
   <div class="modal">
     <h2>Réimprimer l'étiquette</h2>
@@ -738,6 +793,87 @@ document.getElementById('editModalSave').addEventListener('click', async () => {
   }
 });
 
+let pendingEditScelleId = null;
+
+function openEditScelleModal(id) {
+  const product = allSealed.find(p => p.id === id);
+  if (!product) return;
+  pendingEditScelleId = id;
+  document.getElementById('editScelleModalTitle').textContent = `Modifier « ${product.nom} »`;
+  document.getElementById('editScelleNom').value = product.nom || '';
+  document.getElementById('editScelleType').value = product.type || 'Display';
+  document.getElementById('editScelleSerie').value = product.series_name || '';
+  document.getElementById('editScellePrix').value = product.prix != null ? product.prix : '';
+  document.getElementById('editScelleQuantite').value = product.quantite != null ? product.quantite : 0;
+  document.getElementById('editScelleStatus').value = product.status || 'en_stock';
+  document.getElementById('editScelleSlug').value = product.slug || '';
+  document.getElementById('editScelleDescription').value = product.description || '';
+  document.getElementById('editScelleStatusMsg').textContent = '';
+  document.getElementById('editScelleModalOverlay').classList.add('open');
+}
+
+function closeEditScelleModal() {
+  pendingEditScelleId = null;
+  document.getElementById('editScelleModalOverlay').classList.remove('open');
+}
+
+document.getElementById('editScelleModalCancel').addEventListener('click', closeEditScelleModal);
+document.getElementById('editScelleModalOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'editScelleModalOverlay') closeEditScelleModal();
+});
+
+document.getElementById('editScelleModalSave').addEventListener('click', async () => {
+  if (!pendingEditScelleId) return;
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  const msgEl = document.getElementById('editScelleStatusMsg');
+
+  const quantite = Math.max(0, parseInt(document.getElementById('editScelleQuantite').value, 10) || 0);
+  const updates = {
+    nom: document.getElementById('editScelleNom').value.trim(),
+    type: document.getElementById('editScelleType').value,
+    series_name: document.getElementById('editScelleSerie').value.trim() || null,
+    prix: parseFloat(document.getElementById('editScellePrix').value) || null,
+    quantite,
+    status: quantite > 0 ? document.getElementById('editScelleStatus').value : 'vendue',
+    slug: slugify(document.getElementById('editScelleSlug').value) || null,
+    description: document.getElementById('editScelleDescription').value.trim() || null
+  };
+
+  if (!updates.nom) {
+    msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Le nom ne peut pas être vide.';
+    return;
+  }
+
+  msgEl.style.color = '';
+  msgEl.textContent = 'Enregistrement...';
+
+  try {
+    const resp = await fetch(`${url}/rest/v1/produits_scelles?id=eq.${pendingEditScelleId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify(updates)
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+
+    const idx = allSealed.findIndex(p => p.id === pendingEditScelleId);
+    if (idx !== -1) allSealed[idx] = { ...allSealed[idx], ...updates };
+
+    closeEditScelleModal();
+    renderSealedList();
+    setStatus('✓ Produit scellé mis à jour.', 'ok');
+  } catch (err) {
+    msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Erreur : ' + err.message;
+  }
+});
+
 function mmToPx(mm) { return mm * (96 / 25.4); }
 
 
@@ -939,6 +1075,7 @@ function renderSealedList() {
           <div class="item-price">${priceText}</div>
         </div>
         <div class="item-actions">
+          <button class="ghost" data-sc-edit="${p.id}">Modifier</button>
           <button class="ghost" data-sc-qty-minus="${p.id}">- Qté</button>
           <button class="ghost" data-sc-qty-plus="${p.id}">+ Qté</button>
           <button class="danger" data-sc-delete="${p.id}" data-name="${escapeHtml(p.nom)}">Supprimer</button>
@@ -947,6 +1084,7 @@ function renderSealedList() {
     `;
   }).join('');
 
+  listEl.querySelectorAll('[data-sc-edit]').forEach(btn => btn.addEventListener('click', () => openEditScelleModal(btn.dataset.scEdit)));
   listEl.querySelectorAll('[data-sc-qty-minus]').forEach(btn => btn.addEventListener('click', () => adjustSealedQty(btn.dataset.scQtyMinus, -1)));
   listEl.querySelectorAll('[data-sc-qty-plus]').forEach(btn => btn.addEventListener('click', () => adjustSealedQty(btn.dataset.scQtyPlus, 1)));
   listEl.querySelectorAll('[data-sc-delete]').forEach(btn => btn.addEventListener('click', () => openDeleteModal(btn.dataset.scDelete, btn.dataset.name, 'scelle')));
