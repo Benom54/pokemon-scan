@@ -18,6 +18,31 @@ const TEMPLATE_PATH = path.join(OUTPUT_ROOT, 'index.html');
 const SCELLE_OUTPUT_ROOT = path.join(process.cwd(), 'produit-scelle');
 const SCELLE_TEMPLATE_PATH = path.join(SCELLE_OUTPUT_ROOT, 'index.html');
 
+// Bloc JSON-LD schema.org/Product — aide Google à afficher prix/disponibilité
+// directement dans les résultats de recherche (rich snippets).
+function buildProductJsonLd({ name, description, url, image, price, isSoldOut, sku }) {
+  const product = {
+    '@context': 'https://schema.org/',
+    '@type': 'Product',
+    name,
+    description,
+    sku: String(sku),
+    url,
+  };
+  if (image) product.image = [image];
+  if (price != null) {
+    product.offers = {
+      '@type': 'Offer',
+      url,
+      priceCurrency: 'EUR',
+      price: Number(price).toFixed(2),
+      availability: isSoldOut ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+      itemCondition: 'https://schema.org/UsedCondition',
+    };
+  }
+  return `<script type="application/ld+json">${JSON.stringify(product)}</script>`;
+}
+
 function buildTrustBarHtml(settingsMap) {
   const items = [
     {
@@ -104,9 +129,11 @@ async function main() {
     const isRare = !!(c.holo || c.graded || c.first_edition);
 
     let priceHtml;
+    let effectivePrice = c.price != null ? Number(c.price) : null;
     if (c.price != null) {
       if (discountPercent > 0) {
         const discounted = c.price * (1 - discountPercent / 100);
+        effectivePrice = discounted;
         priceHtml = `<span class="price-original">${Number(c.price).toFixed(2)} €</span><span class="price-discounted">${discounted.toFixed(2)} €</span>`;
       } else {
         priceHtml = `${Number(c.price).toFixed(2)} €`;
@@ -177,6 +204,19 @@ async function main() {
       '<div class="breadcrumb"><a href="/">← Retour au catalogue</a></div>',
       `<div class="breadcrumb"><a href="/">${escapeHtml(breadcrumbText)}</a></div>`
     );
+    const cardCanonicalUrl = `https://retrocarte.com/carte-pokemon/${folderName}/`;
+    html = html.replace(
+      '<!-- JSON_LD_PLACEHOLDER -->',
+      buildProductJsonLd({
+        name: c.name,
+        description,
+        url: cardCanonicalUrl,
+        image: c.image_url || null,
+        price: effectivePrice,
+        isSoldOut,
+        sku: c.id,
+      })
+    );
     html = html.split(loadingBlock).join(cardPanelHtml);
 
     const outDir = path.join(OUTPUT_ROOT, folderName);
@@ -217,9 +257,11 @@ async function main() {
       const isSoldOut = p.status === 'vendue' || (p.quantite != null && p.quantite <= 0);
 
       let priceHtml;
+      let effectivePrice = p.prix != null ? Number(p.prix) : null;
       if (p.prix != null) {
         if (discountPercent > 0) {
           const discounted = p.prix * (1 - discountPercent / 100);
+          effectivePrice = discounted;
           priceHtml = `<span class="price-original">${Number(p.prix).toFixed(2)} €</span><span class="price-discounted">${discounted.toFixed(2)} €</span>`;
         } else {
           priceHtml = `${Number(p.prix).toFixed(2)} €`;
@@ -270,6 +312,19 @@ async function main() {
       html = html.replace(
         '<div class="breadcrumb"><a href="/">← Retour au catalogue</a></div>',
         `<div class="breadcrumb"><a href="/">${escapeHtml(breadcrumbText)}</a></div>`
+      );
+      const scelleCanonicalUrl = `https://retrocarte.com/produit-scelle/${folderName}/`;
+      html = html.replace(
+        '<!-- JSON_LD_PLACEHOLDER -->',
+        buildProductJsonLd({
+          name: p.nom,
+          description,
+          url: scelleCanonicalUrl,
+          image: p.image_url || null,
+          price: effectivePrice,
+          isSoldOut,
+          sku: p.id,
+        })
       );
       html = html.split(scelleLoadingBlock).join(scellePanelHtml);
 
