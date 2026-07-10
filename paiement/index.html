@@ -103,6 +103,31 @@
     .auth-actions { margin-left: auto; }
     main { padding: 20px 16px 40px; }
   }
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 60;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .auth-modal { width: 100%; max-width: 360px; background: var(--ink-2); border: 1px solid var(--line-bright); border-radius: 14px; padding: 24px; }
+  .auth-tabs { display: flex; gap: 6px; margin-bottom: 18px; background: var(--surface); border-radius: 8px; padding: 3px; }
+  .auth-tab { flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--muted); }
+  .auth-tab.active { background: var(--brass); color: var(--ink); }
+  .auth-modal label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .auth-modal input {
+    width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    color: var(--text); padding: 9px 11px; font-size: 13px; margin-bottom: 14px; font-family: inherit;
+  }
+  .auth-modal input:focus { outline: none; border-color: var(--brass); }
+  .auth-submit { width: 100%; padding: 11px; background: var(--brass); color: var(--ink); border: none; border-radius: 9px; font-weight: 700; font-size: 14px; cursor: pointer; }
+  .auth-msg { font-size: 12.5px; margin-top: 10px; min-height: 16px; }
+  .auth-close { text-align: center; margin-top: 14px; font-size: 12.5px; color: var(--muted); cursor: pointer; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--surface-raised); border: 1px solid var(--line-bright); color: var(--text);
+    padding: 12px 20px; border-radius: 10px; font-size: 13px; opacity: 0; transition: all 0.25s; z-index: 70;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
@@ -180,6 +205,26 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="authOverlay">
+  <div class="auth-modal">
+    <div class="auth-tabs">
+      <div class="auth-tab active" data-tab="login">Connexion</div>
+      <div class="auth-tab" data-tab="signup">Inscription</div>
+    </div>
+    <div>
+      <label for="authEmail">Email</label>
+      <input type="email" id="authEmail" placeholder="toi@exemple.com">
+      <label for="authPassword">Mot de passe</label>
+      <input type="password" id="authPassword" placeholder="••••••••">
+      <button class="auth-submit" id="authSubmit">Se connecter</button>
+      <div class="auth-msg" id="authMsg"></div>
+    </div>
+    <div class="auth-close" id="authClose">Fermer</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script src="/assets/config.js"></script>
 <script>
 const SERIES_LOGO_OVERRIDES = {};
@@ -235,8 +280,54 @@ function renderAuthActions() {
       renderAuthActions();
     });
   } else {
-    el.innerHTML = `<a class="btn-ghost" href="/">Se connecter</a><a class="btn-primary" href="/">S'enregistrer</a>`;
+    el.innerHTML = `<button class="btn-ghost" id="loginBtn">Se connecter</button><button class="btn-primary" id="signupBtn">S'enregistrer</button>`;
+    document.getElementById('loginBtn').addEventListener('click', () => openAuth('login'));
+    document.getElementById('signupBtn').addEventListener('click', () => openAuth('signup'));
   }
+}
+let authMode = 'login';
+function openAuth(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === mode));
+  document.getElementById('authSubmit').textContent = mode === 'login' ? 'Se connecter' : 'Créer mon compte';
+  document.getElementById('authMsg').textContent = '';
+  document.getElementById('authOverlay').classList.add('open');
+}
+document.querySelectorAll('.auth-tab').forEach(tab => tab.addEventListener('click', () => openAuth(tab.dataset.tab)));
+document.getElementById('authClose').addEventListener('click', () => document.getElementById('authOverlay').classList.remove('open'));
+document.getElementById('authOverlay').addEventListener('click', e => { if (e.target.id === 'authOverlay') e.currentTarget.classList.remove('open'); });
+
+document.getElementById('authSubmit').addEventListener('click', async () => {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const msgEl = document.getElementById('authMsg');
+  msgEl.style.color = '';
+  if (!email || !password) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = 'Renseigne un email et un mot de passe.'; return; }
+  msgEl.textContent = authMode === 'login' ? 'Connexion...' : 'Création du compte...';
+  const endpoint = authMode === 'login' ? `${SUPABASE_URL}/auth/v1/token?grant_type=password` : `${SUPABASE_URL}/auth/v1/signup`;
+  try {
+    const resp = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY }, body: JSON.stringify({ email, password }) });
+    const data = await resp.json();
+    if (!resp.ok) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = data.error_description || data.msg || data.error || 'Une erreur est survenue.'; return; }
+    if (data.access_token && data.user) {
+      session = { access_token: data.access_token, user: data.user };
+      localStorage.setItem('retrocarte_session', JSON.stringify(session));
+      document.getElementById('authOverlay').classList.remove('open');
+      renderAuthActions();
+      showToast(authMode === 'login' ? 'Connecté !' : 'Compte créé, bienvenue !');
+      loadCheckout(); // le panier était en attente de connexion : on affiche le récap maintenant
+    } else {
+      msgEl.style.color = 'var(--emerald-bright)';
+      msgEl.textContent = 'Compte créé. Vérifie ta boîte mail pour confirmer, puis connecte-toi.';
+    }
+  } catch (err) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = 'Erreur réseau : ' + err.message; }
+});
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
 let siteSettings = {};
@@ -282,9 +373,11 @@ async function loadCheckout() {
   if (!session || !session.user) {
     contentEl.innerHTML = `
       <div class="empty-cart">
-        Connecte-toi pour finaliser ta commande.<br>
-        <a href="/">Retourne à l'accueil pour te connecter →</a>
+        Connecte-toi pour finaliser ta commande — ça prend 10 secondes.<br>
+        <a href="#" id="openLoginInline">Ouvrir la connexion →</a>
       </div>`;
+    document.getElementById('openLoginInline').addEventListener('click', (e) => { e.preventDefault(); openAuth('login'); });
+    openAuth('login'); // ouvre directement la modale pour ne pas casser le tunnel d'achat
     return;
   }
 
