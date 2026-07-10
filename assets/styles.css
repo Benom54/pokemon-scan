@@ -1,0 +1,46 @@
+/* ============================================================
+   Styles partagés Retrocarte — pages boutique
+   (index, panier, produit-scelle, carte-pokemon, rachat-de-cartes-pokemon)
+   ============================================================
+   Palette de couleurs + resets de base, identiques sur ces 5 pages.
+   Mis en cache par le navigateur après la 1ère page visitée :
+   les navigations suivantes n'ont plus à retélécharger ce bloc.
+
+   Le CSS spécifique à chaque page (grille produits, formulaires,
+   étiquettes...) reste dans le <style> de la page elle-même —
+   seule la base commune est ici.
+   ============================================================ */
+
+:root {
+  --ink: #0e1116;
+  --ink-2: #131720;
+  --surface: #171b24;
+  --surface-raised: #1e232e;
+  --line: #262c38;
+  --line-bright: #343c4a;
+  --brass: #c9a15a;
+  --brass-bright: #e8c583;
+  --emerald: #3f8a68;
+  --emerald-bright: #4fa47d;
+  --rose: #c9607a;
+  --text: #eef1f5;
+  --muted: #8891a1;
+  --muted-dim: #565e70;
+  --danger: #e0838a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background-color: var(--ink);
+  background-image:
+    linear-gradient(rgba(232,197,131,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,197,131,0.035) 1px, transparent 1px);
+  background-size: 26px 26px;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wordmark { font-family: 'Space Grotesk', sans-serif; font-weight: 700; }
+.mono { font-family: 'JetBrains Mono', monospace; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
