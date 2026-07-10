@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<title>Paiement — Retrocarte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/styles.css">
+<style>
+  .app { display: flex; min-height: 100vh; }
+
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 45; }
+  .sidebar-overlay.open { display: block; }
+  .sidebar-close { display: none; }
+  .sidebar-header-row { display: flex; align-items: center; justify-content: space-between; }
+  .brand-mini-topbar { display: none; }
+  .search-toggle-btn { display: none; }
+
+  .sidebar {
+    width: 216px; flex-shrink: 0; background: var(--ink-2); border-right: 1px solid var(--line);
+    padding: 18px 14px; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
+  }
+  .brand { display: flex; align-items: center; gap: 9px; padding: 0 8px; margin-bottom: 22px; }
+  .brand-mark { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--brass), var(--emerald)); display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; color: var(--ink); flex-shrink: 0; }
+  .brand-name { font-size: 16px; letter-spacing: -0.01em; }
+  .nav-group { margin-bottom: 18px; }
+  .nav-label { font-size: 11px; font-weight: 700; color: var(--muted-dim); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 8px; margin-bottom: 6px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 8px; border-radius: 8px; color: var(--muted); font-size: 13.5px; font-weight: 500; cursor: pointer; border: 1px solid transparent; }
+  .nav-item svg { flex-shrink: 0; opacity: 0.8; }
+  .nav-item img { width: 14px; height: 14px; object-fit: contain; flex-shrink: 0; }
+  .nav-item:hover { background: var(--surface); color: var(--text); }
+  .block-list { max-height: 300px; overflow-y: auto; }
+  .block-list::-webkit-scrollbar { width: 3px; }
+  .sidebar-footer { margin-top: auto; padding: 10px 8px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted-dim); }
+  .sidebar-footer b { color: var(--brass-bright); font-family: 'JetBrains Mono', monospace; }
+
+  .main-col { flex: 1; min-width: 0; }
+  .topbar {
+    position: sticky; top: 0; z-index: 20; background: rgba(14,17,22,0.9); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line); padding: 12px 26px; display: flex; gap: 10px; align-items: center;
+  }
+  .mobile-toggle { display: none; }
+  .search-field { position: relative; flex: 1; max-width: 380px; }
+  .search-field input { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 8px 12px 8px 34px; font-size: 13px; font-family: inherit; }
+  .search-field input::placeholder { color: var(--muted-dim); }
+  .search-field input:focus { outline: none; border-color: var(--brass); }
+  .search-field svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted-dim); pointer-events: none; }
+  .auth-actions { display: flex; gap: 8px; margin-left: auto; }
+  .icon-btn {
+    position: relative; width: 34px; height: 34px; border-radius: 8px; background: var(--surface);
+    border: 1px solid var(--line); color: var(--brass-bright); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+  }
+  .icon-btn .count { position: absolute; top: -5px; right: -5px; background: var(--brass); color: var(--ink); font-size: 10px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 3px; }
+  .btn-ghost { background: var(--surface); border: 1px solid var(--line); color: var(--text); padding: 8px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-primary { background: var(--brass); border: 1px solid var(--brass); color: var(--ink); padding: 8px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .user-chip { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px 6px 6px; font-size: 12.5px; cursor: pointer; }
+  .user-avatar { width: 22px; height: 22px; border-radius: 50%; background: var(--emerald); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #f4fbf7; }
+
+  main { max-width: 760px; margin: 0 auto; padding: 30px 26px 60px; }
+  h1 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px; margin: 0 0 20px; }
+
+  .cart-item { display: flex; gap: 14px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .cart-item img { width: 56px; height: 76px; object-fit: contain; background: var(--surface-raised); border-radius: 8px; flex-shrink: 0; }
+  .cart-item-info { flex: 1; min-width: 0; }
+  .cart-item-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px; }
+  .cart-item-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .cart-item-price { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+  .cart-item-price .orig { text-decoration: line-through; color: var(--muted-dim); font-weight: 500; font-size: 11px; display: block; text-align: right; }
+  .cart-item.unavailable { opacity: 0.55; }
+  .cart-item-remove { width: 30px; height: 30px; border-radius: 8px; background: var(--surface-raised); border: 1px solid var(--line); color: var(--muted); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+  .cart-item-remove:hover { border-color: var(--danger); color: var(--danger); }
+  .unavailable-tag { font-size: 10px; font-weight: 700; color: var(--danger); text-transform: uppercase; letter-spacing: 0.03em; }
+
+  .summary { background: var(--surface); border: 1px solid var(--line-bright); border-radius: 12px; padding: 18px; margin-top: 20px; }
+  .summary-row { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+  .summary-total { display: flex; justify-content: space-between; font-size: 19px; font-weight: 700; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .summary-total .mono { color: var(--brass-bright); }
+  .checkout-btn { display: block; width: 100%; text-align: center; padding: 14px; background: var(--emerald); color: #f4fbf7; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 16px; font-family: inherit; }
+  .checkout-btn:hover { background: var(--emerald-bright); }
+  .checkout-note { font-size: 12px; color: var(--muted-dim); margin-top: 10px; text-align: center; }
+
+  .empty-cart { text-align: center; color: var(--muted); padding: 60px 20px; }
+  .pokeball-loader { width: 40px; height: 40px; margin: 0 auto 14px; animation: pb-bounce 1s ease-in-out infinite; }
+  @keyframes pb-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .empty-cart a { color: var(--brass-bright); font-weight: 600; }
+  .loading { text-align: center; color: var(--muted); padding: 60px 20px; }
+
+  @media (max-width: 900px) {
+    .sidebar { position: fixed; left: -240px; z-index: 51; transition: left 0.2s; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+    .sidebar.open { left: 0; }
+    .mobile-toggle { display: flex; width: 34px; height: 34px; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--text); cursor: pointer; flex-shrink: 0; }
+    .sidebar-close { display: flex; width: 30px; height: 30px; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); cursor: pointer; flex-shrink: 0; }
+    .topbar { padding: 10px 12px; position: relative; gap: 6px; }
+    .brand-mini-topbar { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .brand-mini-topbar .mark { width: 28px; height: 28px; border-radius: 7px; background: linear-gradient(135deg, var(--brass), var(--emerald)); display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 11px; color: var(--ink); }
+    .search-toggle-btn { display: flex; width: 34px; height: 34px; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--text); cursor: pointer; flex-shrink: 0; }
+    .search-field { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--ink); border-bottom: 1px solid var(--line); padding: 10px 12px; z-index: 25; max-width: none; }
+    .search-field.open { display: block; }
+    .search-field svg { display: none; }
+    .search-field input { width: 100%; padding-left: 12px; }
+    .auth-actions { margin-left: auto; }
+    main { padding: 20px 16px 40px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header-row">
+      <a class="brand" href="/">
+        <div class="brand-mark">RC</div>
+        <span class="brand-name wordmark">Retrocarte</span>
+      </a>
+      <div class="sidebar-close" id="sidebarClose">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="nav-group">
+      <a class="nav-item" href="/">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Catalogue
+      </a>
+      <a class="nav-item" href="/?nav=favorites">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+        Favoris
+      </a>
+      <a class="nav-item" href="/?nav=scelles">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="13" rx="1.5"/><path d="M4 11h16M9 7V4h6v3"/></svg>
+        Produits scellés
+      </a>
+      <a class="nav-item" href="/rachat-de-cartes-pokemon/">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Rachat de cartes
+      </a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Par bloc</div>
+      <div class="block-list" id="blockList"></div>
+    </div>
+    <div class="sidebar-footer" id="sidebarFooter">Stock vérifié<br>mis à jour en temps réel</div>
+  </aside>
+
+  <div class="main-col">
+    <div class="topbar">
+      <div class="mobile-toggle" id="mobileToggle">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </div>
+      <div class="brand-mini-topbar">
+        <div class="mark">RC</div>
+      </div>
+      <form class="search-field" id="searchForm">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="search" placeholder="Chercher une carte...">
+      </form>
+      <div class="search-toggle-btn" id="searchToggleBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </div>
+      <a class="icon-btn" href="/panier/" title="Panier">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/><path fill="none" stroke="currentColor" stroke-width="2" d="M2 3h2l2.4 12.4a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7H6"/></svg>
+        <span class="count" id="cartCount">0</span>
+      </a>
+      <div class="auth-actions" id="authActions"></div>
+    </div>
+
+    <main>
+      <h1>Paiement</h1>
+      <div id="content"><div class="loading">
+        <svg class="pokeball-loader" viewBox="0 0 24 24">
+          <path d="M12 2a10 10 0 0 1 10 10h-7a3 3 0 0 0-6 0H2A10 10 0 0 1 12 2z" fill="#e0838a"/>
+          <path d="M12 22a10 10 0 0 1-10-10h7a3 3 0 0 0 6 0h7a10 10 0 0 1-10 10z" fill="#eef1f5"/>
+          <circle cx="12" cy="12" r="3.2" fill="#171b24" stroke="#0e1116" stroke-width="1"/>
+        </svg>
+        Préparation de ta commande...
+      </div></div>
+    </main>
+  </div>
+</div>
+
+<script src="/assets/config.js"></script>
+<script>
+const SERIES_LOGO_OVERRIDES = {};
+
+let session = JSON.parse(localStorage.getItem('retrocarte_session') || 'null');
+let cart = new Set(JSON.parse(localStorage.getItem('retrocarte_cart') || '[]'));
+let discountPercent = 0;
+
+function saveCart() { localStorage.setItem('retrocarte_cart', JSON.stringify([...cart])); }
+function updateCartUI() { const b = document.getElementById('cartCount'); if (b) b.textContent = cart.size; }
+
+document.getElementById('searchForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const q = document.getElementById('search').value.trim();
+  window.location.href = q ? `/?q=${encodeURIComponent(q)}` : '/';
+});
+function openMobileSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+document.getElementById('mobileToggle').addEventListener('click', openMobileSidebar);
+document.getElementById('sidebarClose').addEventListener('click', closeMobileSidebar);
+document.getElementById('sidebarOverlay').addEventListener('click', closeMobileSidebar);
+
+const searchToggleBtnEl = document.getElementById('searchToggleBtn');
+if (searchToggleBtnEl) {
+  searchToggleBtnEl.addEventListener('click', () => {
+    document.querySelector('.search-field').classList.toggle('open');
+  });
+}
+
+/* ---------- auth (identique aux autres pages) ---------- */
+function renderAuthActions() {
+  const el = document.getElementById('authActions');
+  if (session && session.user) {
+    const initial = (session.user.email || '?')[0].toUpperCase();
+    el.innerHTML = `
+      <a class="user-chip" href="/compte/" title="Mon compte"><div class="user-avatar">${initial}</div>${escapeHtml(session.user.email)}</a>
+      <button class="icon-btn" id="logoutBtn" title="Se déconnecter">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      </button>
+    `;
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      try {
+        if (session?.access_token) await fetch(`${SUPABASE_URL}/auth/v1/logout`, { method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${session.access_token}` } });
+      } catch (e) {}
+      session = null;
+      localStorage.removeItem('retrocarte_session');
+      renderAuthActions();
+    });
+  } else {
+    el.innerHTML = `<a class="btn-ghost" href="/">Se connecter</a><a class="btn-primary" href="/">S'enregistrer</a>`;
+  }
+}
+
+let siteSettings = {};
+
+async function loadSiteSettings() {
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/settings?select=key,value`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    rows.forEach(r => { siteSettings[r.key] = r.value; });
+  } catch (err) {}
+}
+
+async function loadBlocks() {
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/cartes?select=series_id,series_name,series_logo&status=eq.en_stock`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    const seen = new Map();
+    let count = 0;
+    rows.forEach(c => { count++; if (c.series_id && !seen.has(c.series_id)) seen.set(c.series_id, { name: c.series_name || c.series_id, logo: c.series_logo }); });
+    const stockTemplate = siteSettings.sidebar_stock_text || 'Stock vérifié — {nombre} cartes\nmis à jour en temps réel';
+    document.getElementById('sidebarFooter').innerHTML = escapeHtml(stockTemplate).replace(/\{nombre\}/g, `<b>${count}</b>`).split('\n').join('<br>');
+    const blockListEl = document.getElementById('blockList');
+    let html = '';
+    seen.forEach((info, id) => {
+      const logoSrc = SERIES_LOGO_OVERRIDES[id] || (info.logo ? withExt(info.logo) : null);
+      html += `<a class="nav-item" href="/?series=${encodeURIComponent(id)}">${logoSrc ? `<img src="${escapeHtml(logoSrc)}" alt="">` : ''}${escapeHtml(info.name)}</a>`;
+    });
+    blockListEl.innerHTML = html;
+  } catch (err) {}
+}
+
+async function loadCheckout() {
+  const contentEl = document.getElementById('content');
+
+  // Le paiement est réservé aux clients connectés : c'est ce qui permet
+  // ensuite de retrouver la commande dans "Mon compte".
+  if (!session || !session.user) {
+    contentEl.innerHTML = `
+      <div class="empty-cart">
+        Connecte-toi pour finaliser ta commande.<br>
+        <a href="/">Retourne à l'accueil pour te connecter →</a>
+      </div>`;
+    return;
+  }
+
+  const rawKeys = [...cart];
+  if (rawKeys.length === 0) {
+    contentEl.innerHTML = `<div class="empty-cart">Ton sac est vide — direction le Centre Pokémon pour trouver ta prochaine carte.<br><a href="/">Retourne parcourir le catalogue →</a></div>`;
+    return;
+  }
+
+  const carteIds = [];
+  const scelleIds = [];
+  rawKeys.forEach(key => {
+    if (key.startsWith('scelle:')) scelleIds.push(key.slice('scelle:'.length));
+    else if (key.startsWith('carte:')) carteIds.push(key.slice('carte:'.length));
+    else carteIds.push(key);
+  });
+
+  try {
+    const requests = [
+      fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.discount_percent&select=value`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      })
+    ];
+    if (carteIds.length > 0) {
+      const filter = carteIds.map(id => `id.eq.${id}`).join(',');
+      requests.push(fetch(`${SUPABASE_URL}/rest/v1/cartes?or=(${filter})&select=*`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      }));
+    } else {
+      requests.push(Promise.resolve({ ok: true, json: async () => [] }));
+    }
+    if (scelleIds.length > 0) {
+      const filter = scelleIds.map(id => `id.eq.${id}`).join(',');
+      requests.push(fetch(`${SUPABASE_URL}/rest/v1/produits_scelles?or=(${filter})&select=*`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      }));
+    } else {
+      requests.push(Promise.resolve({ ok: true, json: async () => [] }));
+    }
+
+    const [discountResp, cardsResp, scellesResp] = await Promise.all(requests);
+    if (discountResp.ok) {
+      const rows = await discountResp.json();
+      if (rows.length > 0) discountPercent = parseInt(rows[0].value, 10) || 0;
+    }
+    if (!cardsResp.ok) throw new Error(await cardsResp.text());
+    if (!scellesResp.ok) throw new Error(await scellesResp.text());
+
+    const cards = (await cardsResp.json()).map(c => ({ ...c, _kind: 'carte', _cartKey: `carte:${c.id}` }));
+    const scelles = (await scellesResp.json()).map(p => ({
+      ...p, _kind: 'scelle', _cartKey: `scelle:${p.id}`,
+      name: p.nom, price: p.prix,
+      card_number: p.type, set_name: p.series_name,
+      condition: null, status: (p.status === 'vendue' || p.quantite <= 0) ? 'vendue' : 'en_stock'
+    }));
+
+    renderCheckout([...cards, ...scelles]);
+  } catch (err) {
+    contentEl.innerHTML = `<div class="empty-cart">Erreur de chargement : ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderCheckout(cards) {
+  const contentEl = document.getElementById('content');
+
+  const foundKeys = new Set(cards.map(c => c._cartKey));
+  [...cart].forEach(key => { if (!foundKeys.has(key)) cart.delete(key); });
+  saveCart();
+  updateCartUI();
+
+  if (cards.length === 0) {
+    contentEl.innerHTML = `<div class="empty-cart">Ton sac est vide — direction le Centre Pokémon pour trouver ta prochaine carte.<br><a href="/">Retourne parcourir le catalogue →</a></div>`;
+    return;
+  }
+
+  let total = 0;
+  let unavailableCount = 0;
+
+  const itemsHtml = cards.map(c => {
+    const numberSet = [c.card_number, c.set_name].filter(Boolean).join(' · ');
+    const isSoldOut = c.status === 'vendue';
+    let priceHtml, effectivePrice;
+
+    if (c.price != null) {
+      effectivePrice = discountPercent > 0 ? c.price * (1 - discountPercent / 100) : c.price;
+      priceHtml = `${effectivePrice.toFixed(2)} €`;
+    } else { effectivePrice = 0; priceHtml = 'Sur demande'; }
+
+    if (isSoldOut) unavailableCount++;
+    else total += effectivePrice;
+
+    return `
+      <div class="cart-item ${isSoldOut ? 'unavailable' : ''}">
+        ${c.image_url ? `<img src="${escapeHtml(c.image_url)}" alt="${escapeHtml(c.name)}">` : ''}
+        <div class="cart-item-info">
+          <div class="cart-item-name">${escapeHtml(c.name)}</div>
+          <div class="cart-item-meta">${escapeHtml(numberSet)}</div>
+          ${isSoldOut ? '<div class="unavailable-tag">A trouvé un nouveau dresseur</div>' : ''}
+        </div>
+        <div class="cart-item-price mono">${priceHtml}</div>
+      </div>
+    `;
+  }).join('');
+
+  const availableCards = cards.filter(c => c.status !== 'vendue' && c.price != null);
+
+  contentEl.innerHTML = `
+    ${itemsHtml}
+    <div class="summary">
+      <div class="summary-total"><span>Total</span><span class="mono">${total.toFixed(2)} €</span></div>
+      ${unavailableCount > 0 ? `<div class="checkout-note">${unavailableCount} article${unavailableCount > 1 ? 's' : ''} déjà vendu${unavailableCount > 1 ? 's' : ''} entre-temps, retiré${unavailableCount > 1 ? 's' : ''} de la commande.</div>` : ''}
+      <button type="button" class="checkout-btn" id="payBtn" ${availableCards.length === 0 ? 'disabled' : ''}>Payer ${total.toFixed(2)} € avec Stripe</button>
+      <div class="checkout-note" id="payStatus">Paiement sécurisé par carte bancaire.</div>
+    </div>
+  `;
+
+  document.getElementById('payBtn').addEventListener('click', () => startStripeCheckout(availableCards));
+}
+
+async function startStripeCheckout(availableCards) {
+  const payBtn = document.getElementById('payBtn');
+  const payStatus = document.getElementById('payStatus');
+  payBtn.disabled = true;
+  payStatus.textContent = 'Redirection vers le paiement sécurisé...';
+
+  const items = availableCards.map(c => ({ type: c._kind, id: c.id }));
+
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-checkout-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ items })
+    });
+    const data = await resp.json();
+
+    if (!resp.ok || !data.url) {
+      throw new Error(data.error || 'Impossible de créer le paiement.');
+    }
+
+    window.location.href = data.url;
+  } catch (err) {
+    payStatus.style.color = 'var(--danger)';
+    payStatus.textContent = err.message || 'Erreur lors de la préparation du paiement.';
+    payBtn.disabled = false;
+  }
+}
+
+renderAuthActions();
+updateCartUI();
+loadSiteSettings().then(loadBlocks);
+loadCheckout();
+</script>
+
+</body>
+</html>
