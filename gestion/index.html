@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/assets/config.js"></script>
 <style>
   :root {
     --ink: #eef1f5;
@@ -496,12 +497,6 @@ function setStatus(text, kind) {
   statusEl.className = kind || '';
 }
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str || '';
-  return div.innerHTML;
-}
-
 async function loadCards() {
   const url = urlInput.value.trim().replace(/\/$/, '');
   const key = keyInput.value.trim();
@@ -740,14 +735,6 @@ document.getElementById('editModalSave').addEventListener('click', async () => {
 
 function mmToPx(mm) { return mm * (96 / 25.4); }
 
-function slugify(str) {
-  return (str || '')
-    .toString()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
 
 function fitText(el, maxWidth, maxHeight, startPx, minPx) {
   let fs = startPx;
