@@ -45,7 +45,65 @@
       .replace(/^-+|-+$/g, '');
   }
 
-  const api = { SUPABASE_URL, SUPABASE_ANON_KEY, CONTACT_EMAIL, escapeHtml, withExt, slugify };
+  // Petit gardien de page côté client pour gestion/ et scan/ : ce n'est PAS une
+  // vraie sécurité (le code reste lisible dans la source, un hash SHA-256 peut
+  // être craqué hors-ligne) — la vraie protection reste la clé service_role
+  // qu'il faut de toute façon saisir à la main pour agir sur la base. Ce gardien
+  // sert juste à éviter qu'un visiteur curieux tombe sur l'interface d'admin.
+  async function requirePagePassword(expectedHashHex, sessionKey) {
+    if (typeof window === 'undefined') return; // ne s'applique qu'au navigateur
+
+    if (sessionStorage.getItem(sessionKey) === 'ok') {
+      document.body.style.visibility = 'visible';
+      return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.style.visibility = 'visible'; // le body reste caché (voir <style> de la page), l'overlay doit rester lisible
+    overlay.innerHTML = `
+      <div style="position:fixed;inset:0;z-index:99999;background:#0e1116;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;">
+        <div style="width:280px;text-align:center;">
+          <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;color:#eef1f5;margin-bottom:14px;">Accès restreint</div>
+          <input type="password" id="pagePasswordInput" placeholder="Mot de passe" style="width:100%;background:#171b24;border:1px solid #262c38;border-radius:8px;color:#eef1f5;padding:10px 12px;font-size:13.5px;box-sizing:border-box;margin-bottom:10px;">
+          <button type="button" id="pagePasswordBtn" style="width:100%;background:#c9a15a;border:1px solid #c9a15a;color:#0e1116;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Entrer</button>
+          <div id="pagePasswordMsg" style="color:#e0838a;font-size:12px;margin-top:10px;min-height:16px;"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    async function sha256Hex(text) {
+      const data = new TextEncoder().encode(text);
+      const digest = await crypto.subtle.digest('SHA-256', data);
+      return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    return new Promise((resolve) => {
+      const input = overlay.querySelector('#pagePasswordInput');
+      const btn = overlay.querySelector('#pagePasswordBtn');
+      const msg = overlay.querySelector('#pagePasswordMsg');
+
+      async function tryUnlock() {
+        const hash = await sha256Hex(input.value);
+        if (hash === expectedHashHex) {
+          sessionStorage.setItem(sessionKey, 'ok');
+          document.body.style.visibility = 'visible';
+          overlay.remove();
+          resolve();
+        } else {
+          msg.textContent = 'Mot de passe incorrect.';
+          input.value = '';
+          input.focus();
+        }
+      }
+
+      btn.addEventListener('click', tryUnlock);
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock(); });
+      input.focus();
+    });
+  }
+
+  const api = { SUPABASE_URL, SUPABASE_ANON_KEY, CONTACT_EMAIL, escapeHtml, withExt, slugify, requirePagePassword };
 
   if (typeof module !== 'undefined' && module.exports) {
     // Node (CommonJS) — importé depuis generate-cards.mjs
