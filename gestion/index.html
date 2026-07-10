@@ -204,12 +204,47 @@
   .modal p { font-size: 14px; color: #6b6a64; margin: 0 0 20px; line-height: 1.5; }
   .modal-actions { display: flex; gap: 10px; }
   .modal-actions button { flex: 1; }
+
+  /* ---------- nouvelle mise en page à onglets ---------- */
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--gold), var(--accent)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #14180f; font-family: 'Space Grotesk', sans-serif; flex-shrink: 0; }
+  .brand h1 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; margin: 0; }
+  .scan-btn {
+    display: flex; align-items: center; gap: 7px; background: var(--gold-bg); color: var(--gold);
+    border: 1px solid #4a3d1f; padding: 9px 16px; border-radius: 9px; font-size: 13px; font-weight: 700;
+    text-decoration: none; cursor: pointer;
+  }
+  .scan-btn:hover { filter: brightness(1.1); }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 22px; overflow-x: auto; }
+  .tab {
+    padding: 11px 16px; font-size: 13.5px; font-weight: 600; color: #6b7280; cursor: pointer;
+    border-bottom: 2px solid transparent; white-space: nowrap; user-select: none;
+  }
+  .tab.active { color: var(--ink); border-bottom-color: var(--gold); }
+  .tab:hover:not(.active) { color: var(--ink); }
+
+  .tab-panel { }
+
+  table.users-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.users-table th, table.users-table td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  table.users-table th { color: #8891a1; font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .pagination-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; font-size: 13px; color: #8891a1; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Gestion du stock</h1>
-  <p class="sub">Liste complète de tes cartes (en stock et vendues), avec suppression définitive.</p>
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">RC</div>
+      <h1>Gestion Retrocarte</h1>
+    </div>
+    <a class="scan-btn" href="/scan/">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+      Scan
+    </a>
+  </div>
 
   <div class="panel">
     <label for="supabaseUrl">URL du projet Supabase</label>
@@ -220,6 +255,104 @@
     <div id="status"></div>
   </div>
 
+
+  <div class="tabs">
+    <div class="tab active" data-tab="cartes">Cartes</div>
+    <div class="tab" data-tab="scelles">Produits scellés</div>
+    <div class="tab" data-tab="rachat">Demandes de rachat</div>
+    <div class="tab" data-tab="users">Utilisateurs</div>
+    <div class="tab" data-tab="boutique">Boutique</div>
+    <div class="tab" data-tab="texte">Texte</div>
+  </div>
+
+  <div class="tab-panel" id="panel-cartes">
+  <div class="row">
+    <select id="filterStatus">
+      <option value="all">Toutes les cartes</option>
+      <option value="en_stock">En stock uniquement</option>
+      <option value="vendue">Vendues uniquement</option>
+    </select>
+    <input type="text" id="search" placeholder="Chercher par nom...">
+    <select id="pageSizeSelect" style="max-width:170px;">
+      <option value="10">10 par page</option>
+      <option value="20">20 par page</option>
+      <option value="50">50 par page</option>
+      <option value="100">100 par page</option>
+    </select>
+    <button class="ghost" id="refreshBtn">Actualiser</button>
+  </div>
+
+  <div id="loading" class="loading">Charge tes identifiants Supabase ci-dessus pour voir le stock.</div>
+  <div id="empty" class="empty" style="display:none;">Aucune carte ne correspond.</div>
+  <div id="list" class="list"></div>
+  <div id="pagination" class="pagination"></div>
+
+  </div>
+
+  <div class="tab-panel" id="panel-scelles" style="display:none;">
+  <div class="panel" style="margin-top:32px;">
+    <h2 style="font-size:16px; margin:0 0 4px;">Produits scellés (Display, ETB, Blisters...)</h2>
+    <p class="sub" style="margin:0 0 16px;">Séparés des cartes à l'unité — affichés dans leur propre section sur la boutique.</p>
+
+    <div class="row" style="margin-bottom:0;">
+      <div style="flex:2;"><label>Nom du produit</label><input type="text" id="scNom" placeholder="Display Évolutions Prismatiques"></div>
+      <div><label>Type</label>
+        <select id="scType">
+          <option>Display</option>
+          <option>ETB</option>
+          <option>Blister</option>
+          <option>Coffret</option>
+          <option>Deck</option>
+          <option>Autre</option>
+        </select>
+      </div>
+    </div>
+    <div class="row mt">
+      <div><label>Série</label><input type="text" id="scSerie" placeholder="Évolutions Prismatiques"></div>
+      <div><label>Prix (€)</label><input type="text" id="scPrix" placeholder="180.00"></div>
+      <div><label>Quantité en stock</label><input type="text" id="scQuantite" placeholder="1"></div>
+    </div>
+    <label class="mt">Photo du produit</label>
+    <input type="file" id="scPhoto" accept="image/*">
+    <label class="mt">Description</label>
+    <input type="text" id="scDescription" placeholder="Contenu de la boîte, particularités...">
+
+    <button id="scAddBtn" style="margin-top:14px;">Ajouter le produit</button>
+    <div id="scAddStatus" style="font-size:13px; margin-top:8px; min-height:18px;"></div>
+
+    <div id="scList" class="list" style="margin-top:20px;"></div>
+  </div>
+
+  </div>
+
+  <div class="tab-panel" id="panel-rachat" style="display:none;">
+  <div class="panel" style="margin-top:32px;">
+    <h2 style="font-size:16px; margin:0 0 4px;">Demandes de rachat de cartes</h2>
+    <p class="sub" style="margin:0 0 16px;">Envoyées depuis le formulaire de la page /rachat-de-cartes-pokemon/.</p>
+    <div id="leadsStatus" style="font-size:13px; margin-bottom:10px; min-height:18px;"></div>
+    <div id="leadsEmpty" class="empty" style="display:none; padding:20px 0;">Aucune demande pour le moment.</div>
+    <div id="leadsList" class="list"></div>
+  </div>
+
+  </div>
+
+  <div class="tab-panel" id="panel-users" style="display:none;">
+    <div class="panel" style="padding:0; overflow:hidden;">
+      <table class="users-table">
+        <thead><tr><th>Email</th><th>Inscrit le</th><th>Dernière connexion</th><th>Confirmé</th></tr></thead>
+        <tbody id="usersTableBody"><tr><td colspan="4" style="padding:16px 14px; color:#8891a1;">Ouvre cet onglet pour charger la liste.</td></tr></tbody>
+      </table>
+    </div>
+    <div class="pagination-controls">
+      <span id="usersPageInfo">Page 1</span>
+      <div style="display:flex; gap:8px;">
+        <button class="ghost" id="usersPrevBtn" disabled>← Précédent</button>
+        <button class="ghost" id="usersNextBtn">Suivant →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-boutique" style="display:none;">
   <div class="panel">
     <label for="discountPercent">Remise globale sur la boutique (%)</label>
     <div class="row" style="margin-bottom:0;">
@@ -254,6 +387,9 @@
     <div id="pageSizeStatus" style="font-size:13px; margin-top:8px; min-height:18px;"></div>
   </div>
 
+  </div>
+
+  <div class="tab-panel" id="panel-texte" style="display:none;">
   <div class="panel">
     <h2 style="font-size:16px; margin:0 0 4px;">Personnalisation du contenu</h2>
     <p class="sub" style="margin:0 0 16px;">Ces textes s'appliquent immédiatement sur la boutique, la fiche produit et le panier.</p>
@@ -326,66 +462,6 @@
     <div id="textsStatus" style="font-size:13px; margin-top:8px; min-height:18px;"></div>
   </div>
 
-  <div class="row">
-    <select id="filterStatus">
-      <option value="all">Toutes les cartes</option>
-      <option value="en_stock">En stock uniquement</option>
-      <option value="vendue">Vendues uniquement</option>
-    </select>
-    <input type="text" id="search" placeholder="Chercher par nom...">
-    <select id="pageSizeSelect" style="max-width:170px;">
-      <option value="10">10 par page</option>
-      <option value="20">20 par page</option>
-      <option value="50">50 par page</option>
-      <option value="100">100 par page</option>
-    </select>
-    <button class="ghost" id="refreshBtn">Actualiser</button>
-  </div>
-
-  <div id="loading" class="loading">Charge tes identifiants Supabase ci-dessus pour voir le stock.</div>
-  <div id="empty" class="empty" style="display:none;">Aucune carte ne correspond.</div>
-  <div id="list" class="list"></div>
-  <div id="pagination" class="pagination"></div>
-
-  <div class="panel" style="margin-top:32px;">
-    <h2 style="font-size:16px; margin:0 0 4px;">Produits scellés (Display, ETB, Blisters...)</h2>
-    <p class="sub" style="margin:0 0 16px;">Séparés des cartes à l'unité — affichés dans leur propre section sur la boutique.</p>
-
-    <div class="row" style="margin-bottom:0;">
-      <div style="flex:2;"><label>Nom du produit</label><input type="text" id="scNom" placeholder="Display Évolutions Prismatiques"></div>
-      <div><label>Type</label>
-        <select id="scType">
-          <option>Display</option>
-          <option>ETB</option>
-          <option>Blister</option>
-          <option>Coffret</option>
-          <option>Deck</option>
-          <option>Autre</option>
-        </select>
-      </div>
-    </div>
-    <div class="row mt">
-      <div><label>Série</label><input type="text" id="scSerie" placeholder="Évolutions Prismatiques"></div>
-      <div><label>Prix (€)</label><input type="text" id="scPrix" placeholder="180.00"></div>
-      <div><label>Quantité en stock</label><input type="text" id="scQuantite" placeholder="1"></div>
-    </div>
-    <label class="mt">Photo du produit</label>
-    <input type="file" id="scPhoto" accept="image/*">
-    <label class="mt">Description</label>
-    <input type="text" id="scDescription" placeholder="Contenu de la boîte, particularités...">
-
-    <button id="scAddBtn" style="margin-top:14px;">Ajouter le produit</button>
-    <div id="scAddStatus" style="font-size:13px; margin-top:8px; min-height:18px;"></div>
-
-    <div id="scList" class="list" style="margin-top:20px;"></div>
-  </div>
-
-  <div class="panel" style="margin-top:32px;">
-    <h2 style="font-size:16px; margin:0 0 4px;">Demandes de rachat de cartes</h2>
-    <p class="sub" style="margin:0 0 16px;">Envoyées depuis le formulaire de la page /rachat-de-cartes-pokemon/.</p>
-    <div id="leadsStatus" style="font-size:13px; margin-bottom:10px; min-height:18px;"></div>
-    <div id="leadsEmpty" class="empty" style="display:none; padding:20px 0;">Aucune demande pour le moment.</div>
-    <div id="leadsList" class="list"></div>
   </div>
 </div>
 
@@ -1491,6 +1567,79 @@ if (urlInput.value && keyInput.value) {
 } else {
   loadingEl.textContent = 'Charge tes identifiants Supabase ci-dessus pour voir le stock.';
 }
+
+/* ---------- onglets ---------- */
+let usersLoaded = false;
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).style.display = 'block';
+    if (tab.dataset.tab === 'users' && !usersLoaded) {
+      usersLoaded = true;
+      loadUsersPage(1);
+    }
+  });
+});
+
+/* ---------- utilisateurs (Supabase Auth Admin API) ---------- */
+let usersPage = 1;
+const USERS_PER_PAGE = 10;
+
+async function loadUsersPage(page) {
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  const tbody = document.getElementById('usersTableBody');
+  const infoEl = document.getElementById('usersPageInfo');
+  const prevBtn = document.getElementById('usersPrevBtn');
+  const nextBtn = document.getElementById('usersNextBtn');
+
+  if (!url || !key) {
+    tbody.innerHTML = `<tr><td colspan="4" style="padding:16px 14px; color:var(--danger);">Renseigne l'URL et la clé service_role Supabase ci-dessus.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = `<tr><td colspan="4" style="padding:16px 14px; color:#8891a1;">Chargement...</td></tr>`;
+
+  try {
+    const resp = await fetch(`${url}/auth/v1/admin/users?page=${page}&per_page=${USERS_PER_PAGE}`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` }
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+    // La forme exacte de la réponse peut varier selon la version : on gère les deux cas.
+    const users = Array.isArray(data) ? data : (data.users || []);
+
+    if (users.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="padding:16px 14px; color:#8891a1;">${page > 1 ? 'Aucun utilisateur sur cette page.' : 'Aucun utilisateur inscrit pour le moment.'}</td></tr>`;
+    } else {
+      tbody.innerHTML = users.map(u => {
+        const created = u.created_at ? new Date(u.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+        const lastSignIn = u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+        const confirmed = u.email_confirmed_at || u.confirmed_at;
+        return `
+          <tr>
+            <td>${escapeHtml(u.email || '—')}</td>
+            <td>${created}</td>
+            <td>${lastSignIn}</td>
+            <td style="color:${confirmed ? 'var(--accent)' : 'var(--danger)'};">${confirmed ? '✓' : '✗'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    usersPage = page;
+    infoEl.textContent = `Page ${page}`;
+    prevBtn.disabled = page <= 1;
+    nextBtn.disabled = users.length < USERS_PER_PAGE;
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" style="padding:16px 14px; color:var(--danger);">Erreur : ${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
+document.getElementById('usersPrevBtn').addEventListener('click', () => { if (usersPage > 1) loadUsersPage(usersPage - 1); });
+document.getElementById('usersNextBtn').addEventListener('click', () => loadUsersPage(usersPage + 1));
 </script>
 </body>
 </html>
