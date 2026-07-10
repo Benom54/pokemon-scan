@@ -141,10 +141,25 @@
     .trust-item { padding: 6px; }
   }
 
-  .price-block { margin: 12px 0 20px; }
+  .price-block { margin: 12px 0 14px; }
   .price-original { text-decoration: line-through; color: var(--muted-dim); font-weight: 600; font-size: 20px; margin-right: 10px; }
   .price-discounted { color: var(--brass-bright); }
   .price { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700; }
+
+  .stock-block { margin-bottom: 16px; }
+  .stock-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+  .stock-text { font-size: 13px; font-weight: 700; }
+  .stock-text.healthy { color: var(--emerald-bright); }
+  .stock-text.low { color: var(--brass-bright); }
+  .stock-text.critical { color: var(--rose); }
+  .stock-text.out { color: var(--muted-dim); }
+  .stock-sub { font-size: 12px; color: var(--muted); }
+  .stock-bar-track { height: 7px; background: var(--surface-raised); border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
+  .stock-bar-fill { height: 100%; border-radius: 999px; }
+  .stock-bar-fill.healthy { background: var(--emerald-bright); }
+  .stock-bar-fill.low { background: var(--brass-bright); }
+  .stock-bar-fill.critical { background: var(--rose); }
+  .stock-bar-fill.out { background: var(--muted-dim); }
 
   .cta { display: block; width: 100%; text-align: center; padding: 14px; background: var(--emerald); color: #f4fbf7; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
   .cta.cta-disabled { background: var(--surface-raised); color: var(--muted-dim); cursor: not-allowed; }
@@ -308,6 +323,7 @@
         
       </div>
         <div class="price-block price mono"><span class="price-original">120.00 €</span><span class="price-discounted">108.00 €</span></div>
+        <div class="stock-block"><div class="stock-row"><span class="stock-text critical">Dernier exemplaire !</span><span class="stock-sub">1 restant</span></div><div class="stock-bar-track"><div class="stock-bar-fill critical" style="width:10%;"></div></div></div>
         <button type="button" class="cta" id="cartToggleBtn" data-id="d3db697e-318c-4571-a7ca-7aa718092ca5">Ajouter au panier</button>
       </div>
     </div>
@@ -701,6 +717,7 @@ function renderCard(c, discountPercent) {
         <div class="meta">${escapeHtml(meta)}</div>
         ${descriptionHtml}
         <div class="price-block price mono">${priceHtml}</div>
+        ${buildStockBarHtml(c.quantite, isSoldOut)}
         ${isSoldOut
           ? `<div class="cta cta-disabled">Indisponible — déjà vendu</div>`
           : `<button type="button" class="cta" id="cartToggleBtn" data-id="${escapeHtml(c.id)}">${inCart ? 'Retirer du panier' : 'Ajouter au panier'}</button>`}
