@@ -220,7 +220,12 @@ function renderAuthActions() {
   const el = document.getElementById('authActions');
   if (session && session.user) {
     const initial = (session.user.email || '?')[0].toUpperCase();
-    el.innerHTML = `<div class="user-chip" id="logoutBtn"><div class="user-avatar">${initial}</div>${escapeHtml(session.user.email)}</div>`;
+    el.innerHTML = `
+      <a class="user-chip" href="/compte/" title="Mon compte"><div class="user-avatar">${initial}</div>${escapeHtml(session.user.email)}</a>
+      <button class="icon-btn" id="logoutBtn" title="Se déconnecter">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      </button>
+    `;
     document.getElementById('logoutBtn').addEventListener('click', async () => {
       try {
         if (session?.access_token) await fetch(`${SUPABASE_URL}/auth/v1/logout`, { method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${session.access_token}` } });
@@ -386,13 +391,6 @@ function renderCart(cards) {
   }).join('');
 
   const availableCards = cards.filter(c => c.status !== 'vendue');
-  const subject = encodeURIComponent(`Commande — ${availableCards.length} carte${availableCards.length > 1 ? 's' : ''}`);
-  const lines = availableCards.map(c => {
-    const numberSet = [c.card_number, c.set_name].filter(Boolean).join(' · ');
-    const price = discountPercent > 0 && c.price != null ? (c.price * (1 - discountPercent / 100)).toFixed(2) : (c.price != null ? c.price.toFixed(2) : '?');
-    return `- ${c.name} (${numberSet}) : ${price} €`;
-  }).join('\n');
-  const body = encodeURIComponent(`Bonjour, je souhaite réserver les cartes suivantes :\n\n${lines}\n\nTotal : ${total.toFixed(2)} €`);
 
   contentEl.innerHTML = `
     ${itemsHtml}
@@ -401,8 +399,8 @@ function renderCart(cards) {
       <div class="summary-row"><span>Remise (-${discountPercent}%)</span><span class="mono">-${(totalOriginal - total).toFixed(2)} €</span></div>` : ''}
       <div class="summary-total"><span>Total</span><span class="mono">${total.toFixed(2)} €</span></div>
       ${unavailableCount > 0 ? `<div class="checkout-note">${unavailableCount} carte${unavailableCount > 1 ? 's' : ''} déjà vendue${unavailableCount > 1 ? 's' : ''} entre-temps, non comptée${unavailableCount > 1 ? 's' : ''} dans le total.</div>` : ''}
-      <a class="checkout-btn" href="mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}">Valider ma commande</a>
-      <div class="checkout-note">Ouvre ta messagerie avec le récapitulatif — aucun paiement en ligne pour l'instant, la réservation se confirme par email.</div>
+      <a class="checkout-btn" href="${availableCards.length > 0 ? '/paiement/' : '#'}">Passer au paiement</a>
+      <div class="checkout-note">Paiement sécurisé par carte bancaire (Stripe).</div>
     </div>
   `;
 
