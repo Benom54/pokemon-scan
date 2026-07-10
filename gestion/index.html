@@ -231,6 +231,20 @@
   </div>
 
   <div class="panel">
+    <label for="markupPercent">Augmentation de prix en masse (%)</label>
+    <div class="row" style="margin-bottom:0;">
+      <input type="number" id="markupPercent" min="0.1" max="500" step="0.5" placeholder="Ex : 5" style="max-width:120px;">
+      <button id="markupApplyBtn">Augmenter les prix</button>
+    </div>
+    <label style="display:flex; align-items:center; gap:8px; font-weight:400; font-size:13px; margin-top:10px; cursor:pointer;">
+      <input type="checkbox" id="markupIncludeSold" style="width:auto;">
+      Inclure aussi les articles déjà vendus
+    </label>
+    <p class="sub" style="margin:8px 0 0;">⚠️ Contrairement à la remise ci-dessus, ceci modifie <b>définitivement</b> le prix stocké en base pour toutes les cartes et produits scellés (en stock par défaut). Aucun retour en arrière automatique possible.</p>
+    <div id="markupStatus" style="font-size:13px; margin-top:8px; min-height:18px;"></div>
+  </div>
+
+  <div class="panel">
     <label for="boutiquePageSize">Nombre de cartes par page sur la boutique</label>
     <div class="row" style="margin-bottom:0;">
       <input type="number" id="boutiquePageSize" min="1" max="200" step="1" value="12" style="max-width:120px;">
@@ -1333,6 +1347,89 @@ document.getElementById('discountApplyBtn').addEventListener('click', async () =
   } catch (err) {
     discountStatusEl.style.color = 'var(--danger)';
     discountStatusEl.textContent = 'Erreur : ' + err.message;
+  }
+});
+
+document.getElementById('markupApplyBtn').addEventListener('click', async () => {
+  const url = urlInput.value.trim().replace(/\/$/, '');
+  const key = keyInput.value.trim();
+  const statusEl = document.getElementById('markupStatus');
+  const percent = parseFloat(document.getElementById('markupPercent').value);
+  const includeSold = document.getElementById('markupIncludeSold').checked;
+
+  if (!url || !key) {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = 'Renseigne l\'URL et la clé service_role Supabase.';
+    return;
+  }
+  if (isNaN(percent) || percent <= 0) {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = 'Renseigne un pourcentage supérieur à 0.';
+    return;
+  }
+
+  const cardsToUpdate = allCards.filter(c => c.price != null && (includeSold || c.status !== 'vendue'));
+  const sealedToUpdate = allSealed.filter(p => p.prix != null && (includeSold || p.status !== 'vendue'));
+  const total = cardsToUpdate.length + sealedToUpdate.length;
+
+  if (total === 0) {
+    statusEl.style.color = '';
+    statusEl.textContent = 'Aucun article avec un prix défini à augmenter.';
+    return;
+  }
+
+  const confirmed = confirm(
+    `Augmenter DÉFINITIVEMENT le prix de ${total} article(s) de ${percent}% ?\n\n` +
+    `${cardsToUpdate.length} carte(s) + ${sealedToUpdate.length} produit(s) scellé(s).\n` +
+    `Cette action modifie directement la base et ne peut pas être annulée automatiquement.`
+  );
+  if (!confirmed) return;
+
+  statusEl.style.color = '';
+  statusEl.textContent = `Mise à jour de ${total} article(s) en cours...`;
+
+  let updated = 0;
+  let failed = 0;
+
+  try {
+    await Promise.all(cardsToUpdate.map(async (c) => {
+      const newPrice = Math.round(c.price * (1 + percent / 100) * 100) / 100;
+      try {
+        const resp = await fetch(`${url}/rest/v1/cartes?id=eq.${c.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', apikey: key, Authorization: `Bearer ${key}`, Prefer: 'return=minimal' },
+          body: JSON.stringify({ price: newPrice })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        c.price = newPrice;
+        updated++;
+      } catch (err) { failed++; }
+    }));
+
+    await Promise.all(sealedToUpdate.map(async (p) => {
+      const newPrix = Math.round(p.prix * (1 + percent / 100) * 100) / 100;
+      try {
+        const resp = await fetch(`${url}/rest/v1/produits_scelles?id=eq.${p.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', apikey: key, Authorization: `Bearer ${key}`, Prefer: 'return=minimal' },
+          body: JSON.stringify({ prix: newPrix })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        p.prix = newPrix;
+        updated++;
+      } catch (err) { failed++; }
+    }));
+
+    render();
+    renderSealedList();
+
+    statusEl.style.color = failed > 0 ? 'var(--danger)' : 'var(--accent)';
+    statusEl.textContent = failed > 0
+      ? `⚠️ ${updated} article(s) mis à jour, ${failed} échec(s).`
+      : `✓ ${updated} article(s) augmenté(s) de ${percent}%.`;
+  } catch (err) {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = 'Erreur : ' + err.message;
   }
 });
 
