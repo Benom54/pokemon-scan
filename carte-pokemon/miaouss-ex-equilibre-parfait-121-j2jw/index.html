@@ -312,7 +312,7 @@
       <p>Découvrez la sublime carte Miaouss-ex, Pokémon de la série Équilibre Parfait, actuellement disponible. <br><br>✅ Carte 100 % authentique, soigneusement vérifiée avant expédition. <br>📦 Protection premium pour garantir une livraison en parfait état. <br>🚚 Expédition rapide et sécurisée avec suivi. <br>⭐ Achetez en toute confiance et ajoutez cette pièce à votre collection.</p>
       
     </div>
-        <div class="price-block price mono"><span class="price-original">117.87 €</span><span class="price-discounted">108.44 €</span></div>
+        <div class="price-block price mono"><span class="price-original">117.87 €</span><span class="price-discounted">106.08 €</span></div>
         <button type="button" class="cta" id="cartToggleBtn" data-id="847c0c5b-3c29-4174-bacc-4434050c9463">Ajouter au panier</button>
       </div>
     </div>
@@ -496,7 +496,12 @@ function renderAuthActions() {
   const el = document.getElementById('authActions');
   if (session && session.user) {
     const initial = (session.user.email || '?')[0].toUpperCase();
-    el.innerHTML = `<div class="user-chip" id="logoutBtn"><div class="user-avatar">${initial}</div>${escapeHtml(session.user.email)}</div>`;
+    el.innerHTML = `
+      <a class="user-chip" href="/compte/" title="Mon compte"><div class="user-avatar">${initial}</div>${escapeHtml(session.user.email)}</a>
+      <button class="icon-btn" id="logoutBtn" title="Se déconnecter">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      </button>
+    `;
     document.getElementById('logoutBtn').addEventListener('click', logout);
   } else {
     el.innerHTML = `<button class="btn-ghost" id="loginBtn">Se connecter</button><button class="btn-primary" id="signupBtn">S'enregistrer</button>`;
