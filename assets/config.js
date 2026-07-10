@@ -45,6 +45,30 @@
       .replace(/^-+|-+$/g, '');
   }
 
+  // Barre de stock pour les produits scellés (quantite dénombrable, contrairement
+  // aux cartes qui sont uniques). Jauge d'urgence plafonnée visuellement à 10
+  // exemplaires — pas un vrai "vendu / stock initial" (cette donnée n'existe pas
+  // en base), juste un indicateur du niveau de stock actuel.
+  function buildStockBarHtml(quantite, isSoldOut) {
+    const qty = Number(quantite) || 0;
+
+    if (isSoldOut || qty <= 0) {
+      return `<div class="stock-block"><div class="stock-row"><span class="stock-text out">Rupture de stock</span></div><div class="stock-bar-track"><div class="stock-bar-fill out" style="width:100%;"></div></div></div>`;
+    }
+
+    const pct = Math.min(qty, 10) / 10 * 100;
+    let level, text, sub;
+    if (qty === 1) {
+      level = 'critical'; text = 'Dernier exemplaire !'; sub = '1 restant';
+    } else if (qty <= 4) {
+      level = 'low'; text = `Plus que ${qty} en stock`; sub = 'dépêche-toi';
+    } else {
+      level = 'healthy'; text = 'En stock'; sub = `${qty} exemplaires`;
+    }
+
+    return `<div class="stock-block"><div class="stock-row"><span class="stock-text ${level}">${text}</span><span class="stock-sub">${sub}</span></div><div class="stock-bar-track"><div class="stock-bar-fill ${level}" style="width:${pct}%;"></div></div></div>`;
+  }
+
   // Petit gardien de page côté client pour gestion/ et scan/ : ce n'est PAS une
   // vraie sécurité (le code reste lisible dans la source, un hash SHA-256 peut
   // être craqué hors-ligne) — la vraie protection reste la clé service_role
@@ -103,7 +127,7 @@
     });
   }
 
-  const api = { SUPABASE_URL, SUPABASE_ANON_KEY, CONTACT_EMAIL, escapeHtml, withExt, slugify, requirePagePassword };
+  const api = { SUPABASE_URL, SUPABASE_ANON_KEY, CONTACT_EMAIL, escapeHtml, withExt, slugify, requirePagePassword, buildStockBarHtml };
 
   if (typeof module !== 'undefined' && module.exports) {
     // Node (CommonJS) — importé depuis generate-cards.mjs
